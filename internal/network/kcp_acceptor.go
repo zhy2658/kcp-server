@@ -1,6 +1,7 @@
 package network
 
 import (
+	"fmt"
 	"io"
 	"net"
 
@@ -18,6 +19,7 @@ type KCPAcceptor struct {
 	listener      *kcp.Listener
 	running       bool
 	proxyProtocol bool
+	cfg           *config.Config
 }
 
 type kcpPlayerConn struct {
@@ -52,12 +54,14 @@ func (k *kcpPlayerConn) GetNextMessage() (b []byte, err error) {
 // Ensure kcpPlayerConn implements acceptor.PlayerConn
 var _ acceptor.PlayerConn = &kcpPlayerConn{}
 
-func NewKCPAcceptor(addr string) *KCPAcceptor {
+func NewKCPAcceptor(cfg *config.Config) *KCPAcceptor {
+	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	return &KCPAcceptor{
 		addr:          addr,
 		connChan:      make(chan acceptor.PlayerConn),
 		running:       false,
 		proxyProtocol: false,
+		cfg:           cfg,
 	}
 }
 
@@ -117,17 +121,17 @@ func (a *KCPAcceptor) ListenAndServe() {
 		if kcpConn, ok := conn.(*kcp.UDPSession); ok {
 			// NoDelay(nodelay, interval, resend, nc)
 			kcpConn.SetNoDelay(
-				config.Conf.KCP.NoDelay,
-				config.Conf.KCP.Interval,
-				config.Conf.KCP.Resend,
-				config.Conf.KCP.NC,
+				a.cfg.KCP.NoDelay,
+				a.cfg.KCP.Interval,
+				a.cfg.KCP.Resend,
+				a.cfg.KCP.NC,
 			)
 
 			// Pitaya protocol relies on stream processing (Head + Body)
 			kcpConn.SetStreamMode(true)
 
-			kcpConn.SetWindowSize(config.Conf.KCP.SndWnd, config.Conf.KCP.RcvWnd)
-			kcpConn.SetACKNoDelay(config.Conf.KCP.AckNoDelay)
+			kcpConn.SetWindowSize(a.cfg.KCP.SndWnd, a.cfg.KCP.RcvWnd)
+			kcpConn.SetACKNoDelay(a.cfg.KCP.AckNoDelay)
 		}
 
 		a.connChan <- &kcpPlayerConn{Conn: conn}

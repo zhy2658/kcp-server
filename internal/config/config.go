@@ -38,7 +38,7 @@ type Config struct {
 
 var Conf *Config
 
-func Load() error {
+func Load() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
@@ -46,9 +46,15 @@ func Load() error {
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
-		return err
+		return nil, err
 	}
 
-	Conf = &Config{}
-	return viper.Unmarshal(Conf)
+	conf := &Config{}
+	if err := viper.Unmarshal(conf); err != nil {
+		return nil, err
+	}
+
+	// Keep global for backward compatibility if needed, but return instance for DI
+	Conf = conf
+	return conf, nil
 }
