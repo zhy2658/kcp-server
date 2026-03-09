@@ -98,7 +98,9 @@ func (a *KCPAcceptor) EnableProxyProtocol() {
 func (a *KCPAcceptor) ListenAndServe() {
 	// Use nil block for no encryption.
 	// For production, consider using a block cipher like kcp.NewAESBlockCrypt
-	l, err := kcp.ListenWithOptions(a.addr, nil, 10, 3)
+	// Disable FEC (Forward Error Correction) for Unity C# Client compatibility
+	// (Unless C# client supports FEC, which is complex)
+	l, err := kcp.ListenWithOptions(a.addr, nil, 0, 0)
 	if err != nil {
 		logger.Log.Fatalf("Failed to listen: %s", err.Error())
 	}

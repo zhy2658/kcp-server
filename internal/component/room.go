@@ -241,6 +241,7 @@ func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) {
 	}
 
 	// Broadcast valid move
+	logger.Log.Debugf("Player %s moved to: %v", uid, req.Position)
 	err := r.app.GroupBroadcast(ctx, config.Conf.Server.Type, roomID, "OnPlayerMove", &protocol.PlayerMovePush{
 		Id:       uid,
 		Position: req.Position,

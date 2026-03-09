@@ -22,7 +22,8 @@ import (
 
 func main() {
 	// 1. Connect to KCP server
-	conn, err := kcp.DialWithOptions("127.0.0.1:3250", nil, 10, 3)
+	// Disable FEC
+	conn, err := kcp.DialWithOptions("127.0.0.1:3250", nil, 0, 0)
 	if err != nil {
 		log.Fatalf("Failed to dial KCP: %v", err)
 	}
