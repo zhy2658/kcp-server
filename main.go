@@ -1,106 +1,47 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"strings"
 
-	"3dtest-server/protocol"
-	"3dtest-server/serializer"
+	"3dtest-server/internal/component"
+	"3dtest-server/internal/config"
+	"3dtest-server/internal/network"
+	"3dtest-server/internal/serializer"
 
 	"github.com/sirupsen/logrus"
 	"github.com/topfreegames/pitaya/v2"
-	"github.com/topfreegames/pitaya/v2/component"
-	"github.com/topfreegames/pitaya/v2/config"
-	"github.com/topfreegames/pitaya/v2/constants"
+	pitayacomponent "github.com/topfreegames/pitaya/v2/component"
+	pitayaconfig "github.com/topfreegames/pitaya/v2/config"
 	"github.com/topfreegames/pitaya/v2/logger"
 	logruswrapper "github.com/topfreegames/pitaya/v2/logger/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-type Room struct {
-	component.Base
-	app pitaya.Pitaya
-}
-
-func NewRoom(app pitaya.Pitaya) *Room {
-	return &Room{
-		app: app,
-	}
-}
-
-func (r *Room) Init() {
-	// Create the room group.
-	// In a real app, you might create groups dynamically.
-	err := r.app.GroupCreate(context.Background(), "room")
-	if err != nil && err != constants.ErrGroupAlreadyExists {
-		log.Printf("failed to create group: %s", err.Error())
-	}
-}
-
-func (r *Room) Join(ctx context.Context, msg *protocol.JoinRequest) (*protocol.JoinResponse, error) {
-	s := r.app.GetSessionFromCtx(ctx)
-	// Bind session to a UID. Using session ID as UID for simplicity.
-	uid := fmt.Sprintf("%d", s.ID())
-	err := s.Bind(ctx, uid)
-	if err != nil {
-		// If already bound, we can ignore or handle it.
-		// For now, assume it's a new session.
-		if err != constants.ErrSessionAlreadyBound {
-			return nil, err
-		}
-	}
-
-	fmt.Printf("Client joined: %s (UID: %s)\n", msg.Name, uid)
-
-	// Add to group
-	err = r.app.GroupAddMember(ctx, "room", uid)
-	if err != nil {
-		log.Printf("failed to join group: %s", err.Error())
-	}
-
-	// Handle session close to remove from group
-	s.OnClose(func() {
-		r.app.GroupRemoveMember(context.Background(), "room", uid)
-	})
-
-	return &protocol.JoinResponse{
-		Code:    200,
-		Message: "Welcome to Pitaya Server (KCP)!",
-	}, nil
-}
-
-func (r *Room) Message(ctx context.Context, msg *protocol.ChatMessage) {
-	s := r.app.GetSessionFromCtx(ctx)
-	fmt.Printf("Message from %s: %s\n", s.UID(), msg.Content)
-
-	// Broadcast protobuf message
-	// Route "OnMessage" must match client handler
-	// frontendType should be the server type "game"
-	err := r.app.GroupBroadcast(ctx, "game", "room", "OnMessage", &protocol.ChatMessage{
-		SenderId: s.ID(),
-		Content:  msg.Content,
-	})
-	if err != nil {
-		log.Printf("Failed to broadcast message: %v", err)
-	}
-}
-
 func main() {
-	// Configure Logger
+	// 1. Load Configuration
+	if err := config.Load(); err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// 2. Configure Logger
 	l := logrus.New()
 	l.SetFormatter(&logrus.TextFormatter{})
-	l.SetLevel(logrus.DebugLevel)
+	level, err := logrus.ParseLevel(config.Conf.Log.Level)
+	if err != nil {
+		level = logrus.DebugLevel
+	}
+	l.SetLevel(level)
 
 	// Set up file logging
 	fileLogger := &lumberjack.Logger{
-		Filename:   "./logs/server.log",
-		MaxSize:    10, // megabytes
-		MaxBackups: 3,
-		MaxAge:     28, // days
+		Filename:   config.Conf.Log.Filename,
+		MaxSize:    config.Conf.Log.MaxSize,
+		MaxBackups: config.Conf.Log.MaxBackups,
+		MaxAge:     config.Conf.Log.MaxAge,
 	}
 
 	// Multiwriter to write to both stdout and file
@@ -109,25 +50,33 @@ func main() {
 
 	logger.SetLogger(logruswrapper.NewWithFieldLogger(l))
 
-	// Configure Pitaya
+	// 3. Configure Pitaya
 	// Standalone mode, no cluster
-	builder := pitaya.NewDefaultBuilder(true, "game", pitaya.Standalone, map[string]string{}, *config.NewDefaultPitayaConfig())
+	pitayaConfig := pitayaconfig.NewDefaultPitayaConfig()
+	pitayaConfig.Heartbeat.Interval = config.Conf.Game.HeartbeatInterval
+
+	// Metrics Configuration (Prometheus)
+	pitayaConfig.Metrics.Prometheus.Enabled = true
+	pitayaConfig.Metrics.Prometheus.Port = 9090
+
+	builder := pitaya.NewDefaultBuilder(true, config.Conf.Server.Type, pitaya.Standalone, map[string]string{}, *pitayaConfig)
 
 	// Set Serializer to Custom Protobuf Serializer
 	builder.Serializer = serializer.NewSerializer()
 
 	// Add KCP Acceptor to Builder
-	kcpAcc := NewKCPAcceptor(":3250")
+	addr := fmt.Sprintf("%s:%d", config.Conf.Server.Host, config.Conf.Server.Port)
+	kcpAcc := network.NewKCPAcceptor(addr)
 	builder.AddAcceptor(kcpAcc)
 
 	app := builder.Build()
 
-	// Register Room Component
-	app.Register(NewRoom(app),
-		component.WithName("room"),
-		component.WithNameFunc(strings.ToLower),
+	// 4. Register Room Component
+	app.Register(component.NewRoom(app),
+		pitayacomponent.WithName("room"),
+		pitayacomponent.WithNameFunc(strings.ToLower),
 	)
 
-	log.Println("Pitaya server starting on :3250 (KCP Mode)")
+	logger.Log.Infof("Pitaya server starting on %s (KCP Mode)", addr)
 	app.Start()
 }

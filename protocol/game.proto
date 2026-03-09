@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "3dtest-server/protocol";
+
+// Room Management
+message CreateRoomRequest {
+  string name = 1;
+  int32 max_players = 2;
+}
+
+message CreateRoomResponse {
+  string id = 1;
+  string name = 2;
+}
+
+message ListRoomsRequest {}
+
+message RoomInfo {
+  string id = 1;
+  string name = 2;
+  int32 count = 3;
+  int32 max = 4;
+}
+
+message ListRoomsResponse {
+  repeated RoomInfo rooms = 1;
+}
+
+message JoinRequest {
+  string room_id = 1;
+  string name = 2;
+}
+
+message JoinResponse {
+  int32 code = 1;
+  string message = 2;
+  string room_id = 3;
+}
+
+message LeaveRequest {}
+
+// Player State & Movement
+message Vector3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+message Quaternion {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+  float w = 4;
+}
+
+message PlayerState {
+  string id = 1;
+  Vector3 position = 2;
+  Quaternion rotation = 3;
+}
+
+message MoveRequest {
+  Vector3 position = 1;
+  Quaternion rotation = 2;
+}
+
+// Chat (Existing)
+message ChatMessage {
+  string sender_id = 1; // Can be empty when sending, filled by server
+  string content = 2;
+}
+
+// Server Push Messages
+message PlayerJoinPush {
+  string id = 1;
+  string name = 2;
+}
+
+message PlayerLeavePush {
+  string id = 1;
+}
+
+message PlayerMovePush {
+  string id = 1;
+  Vector3 position = 2;
+  Quaternion rotation = 3;
+}

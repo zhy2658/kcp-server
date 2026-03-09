@@ -1,0 +1,25 @@
+server:
+  host: "0.0.0.0"
+  port: 3250
+  type: "game"
+  debug: true
+
+kcp:
+  nodelay: 1
+  interval: 10
+  resend: 2
+  nc: 1
+  sndwnd: 128
+  rcvwnd: 128
+  acknodelay: true
+
+log:
+  level: "debug"
+  filename: "./logs/server.log"
+  max_size: 10
+  max_backups: 3
+  max_age: 28
+
+game:
+  heartbeat_interval: 30s
+  max_room_players: 10

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"os/signal"
 	"time"
@@ -44,22 +45,54 @@ func main() {
 	// 3. Start reading loop
 	go readLoop(conn)
 
-	// 4. Send Join Request (Request/Response)
-	// Route: "room.join"
-	joinReq := &protocol.JoinRequest{
-		Name: "Player1",
+	// 4. Create Room (Request)
+	// Route: "room.create"
+	roomName := fmt.Sprintf("Room-%d", rand.Intn(1000))
+	createReq := &protocol.CreateRoomRequest{
+		Name:       roomName,
+		MaxPlayers: 10,
 	}
-	data, _ := proto.Marshal(joinReq)
+	data, _ := proto.Marshal(createReq)
+	sendRequest(conn, "room.create", data)
+
+	// Wait for creation response (simulated by sleep, real client should wait callback)
+	time.Sleep(500 * time.Millisecond)
+
+	// 5. List Rooms (Request)
+	// Route: "room.list"
+	listReq := &protocol.ListRoomsRequest{}
+	data, _ = proto.Marshal(listReq)
+	sendRequest(conn, "room.list", data)
+
+	time.Sleep(500 * time.Millisecond)
+
+	// 6. Join Room (Request)
+	// We'll try to join the room we created (assuming we know ID or just use "lobby" if logic changed)
+	// For test simplicity, we join "lobby" first or wait for List response to parse ID.
+	// But our client is dumb here. Let's just join "lobby" which is default created.
+	joinReq := &protocol.JoinRequest{
+		RoomId: "lobby",
+		Name:   fmt.Sprintf("Player-%d", rand.Intn(1000)),
+	}
+	data, _ = proto.Marshal(joinReq)
 	sendRequest(conn, "room.join", data)
 
-	// 5. Wait a bit then send a chat message (Notify)
-	time.Sleep(1 * time.Second)
-	chatMsg := &protocol.ChatMessage{
-		Content: "Hello KCP World!",
-	}
-	data, _ = proto.Marshal(chatMsg)
-	// Route: "room.message" is a Notify handler (returns error only)
-	sendNotify(conn, "room.message", data)
+	// 7. Start Moving
+	go func() {
+		ticker := time.NewTicker(1 * time.Second) // 1 Hz for test
+		pos := &protocol.Vector3{X: 0, Y: 0, Z: 0}
+		for range ticker.C {
+			pos.X += 1.0
+			pos.Z += 0.5
+
+			moveReq := &protocol.MoveRequest{
+				Position: pos,
+				Rotation: &protocol.Quaternion{X: 0, Y: 0, Z: 0, W: 1},
+			}
+			data, _ := proto.Marshal(moveReq)
+			sendNotify(conn, "room.move", data)
+		}
+	}()
 
 	// Keep running
 	c := make(chan os.Signal, 1)
@@ -90,7 +123,6 @@ func handshake(conn *kcp.UDPSession) error {
 	conn.Write(pkt)
 
 	// Read Handshake Response
-	// We need to read enough bytes for header
 	header := make([]byte, codec.HeadLength)
 	if _, err := io.ReadFull(conn, header); err != nil {
 		return err
@@ -141,11 +173,13 @@ func sendNotify(conn *kcp.UDPSession, route string, data []byte) {
 		Data:  data,
 	}
 	send(conn, msg)
-	fmt.Printf("Sent Notify: %s\n", route)
+	// Reduce spam
+	if route != "room.move" {
+		fmt.Printf("Sent Notify: %s\n", route)
+	}
 }
 
 func send(conn *kcp.UDPSession, msg *message.Message) {
-	// Encode Message
 	msgEncoder := message.NewMessagesEncoder(false)
 	encodedMsg, err := msgEncoder.Encode(msg)
 	if err != nil {
@@ -153,7 +187,6 @@ func send(conn *kcp.UDPSession, msg *message.Message) {
 		return
 	}
 
-	// Encode Packet
 	pktEncoder := codec.NewPomeloPacketEncoder()
 	packetData, err := pktEncoder.Encode(packet.Data, encodedMsg)
 	if err != nil {
@@ -169,27 +202,23 @@ func readLoop(conn *kcp.UDPSession) {
 	header := make([]byte, codec.HeadLength)
 
 	for {
-		// Read Header
 		if _, err := io.ReadFull(conn, header); err != nil {
 			log.Printf("Read error: %v", err)
 			return
 		}
 
-		// Parse Header
 		size, _, err := codec.ParseHeader(header)
 		if err != nil {
 			log.Printf("Header parse error: %v", err)
 			continue
 		}
 
-		// Read Body
 		body := make([]byte, size)
 		if _, err := io.ReadFull(conn, body); err != nil {
 			log.Printf("Body read error: %v", err)
 			return
 		}
 
-		// Decode Packet
 		packets, err := decoder.Decode(append(header, body...))
 		if err != nil {
 			log.Printf("Packet decode error: %v", err)
@@ -205,8 +234,8 @@ func readLoop(conn *kcp.UDPSession) {
 				}
 				handleMessage(msg)
 			} else if p.Type == packet.Heartbeat {
-				// Reply to heartbeat
-				// ...
+				// Reply to heartbeat if needed, but client usually just sends heartbeats?
+				// Pitaya server expects heartbeats from client.
 			}
 		}
 	}
@@ -215,19 +244,36 @@ func readLoop(conn *kcp.UDPSession) {
 func handleMessage(msg *message.Message) {
 	if msg.Type == message.Response {
 		fmt.Printf("Received Response (ID: %d)\n", msg.ID)
-		// Decode payload based on ID or context (simplified)
-		// For Join (ID 1), it's JoinResponse
-		if msg.ID == 1 {
-			resp := &protocol.JoinResponse{}
-			proto.Unmarshal(msg.Data, resp)
-			fmt.Printf("Join Response: Code=%d, Msg=%s\n", resp.Code, resp.Message)
+
+		// Simple routing based on ID guess (not robust)
+		// Real implementation needs a callback map
+
+		// Attempt to decode as various responses
+		if joinResp := new(protocol.JoinResponse); proto.Unmarshal(msg.Data, joinResp) == nil && joinResp.Code != 0 {
+			fmt.Printf("Join Response: Code=%d, Msg=%s, RoomID=%s\n", joinResp.Code, joinResp.Message, joinResp.RoomId)
+		} else if createResp := new(protocol.CreateRoomResponse); proto.Unmarshal(msg.Data, createResp) == nil && createResp.Id != "" {
+			fmt.Printf("Create Room Response: ID=%s, Name=%s\n", createResp.Id, createResp.Name)
+		} else if listResp := new(protocol.ListRoomsResponse); proto.Unmarshal(msg.Data, listResp) == nil {
+			fmt.Printf("List Rooms Response: %d rooms\n", len(listResp.Rooms))
+			for _, r := range listResp.Rooms {
+				fmt.Printf(" - %s (%s) %d/%d\n", r.Name, r.Id, r.Count, r.Max)
+			}
 		}
+
 	} else if msg.Type == message.Push {
-		fmt.Printf("Received Push (Route: %s)\n", msg.Route)
-		if msg.Route == "OnMessage" {
-			chat := &protocol.ChatMessage{}
-			proto.Unmarshal(msg.Data, chat)
-			fmt.Printf("Chat Push: User %d says: %s\n", chat.SenderId, chat.Content)
+		// fmt.Printf("Received Push (Route: %s)\n", msg.Route)
+		if msg.Route == "OnPlayerMove" {
+			move := &protocol.PlayerMovePush{}
+			proto.Unmarshal(msg.Data, move)
+			fmt.Printf("Move: %s -> (%.1f, %.1f, %.1f)\n", move.Id, move.Position.X, move.Position.Y, move.Position.Z)
+		} else if msg.Route == "OnPlayerJoin" {
+			join := &protocol.PlayerJoinPush{}
+			proto.Unmarshal(msg.Data, join)
+			fmt.Printf("Player Joined: %s (%s)\n", join.Name, join.Id)
+		} else if msg.Route == "OnPlayerLeave" {
+			leave := &protocol.PlayerLeavePush{}
+			proto.Unmarshal(msg.Data, leave)
+			fmt.Printf("Player Left: %s\n", leave.Id)
 		}
 	}
 }
