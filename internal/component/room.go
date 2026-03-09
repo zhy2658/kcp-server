@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"3dtest-server/internal/config"
+	"3dtest-server/internal/gameerror"
 	"3dtest-server/internal/models"
 	"3dtest-server/protocol"
 
@@ -16,25 +17,18 @@ import (
 	"github.com/topfreegames/pitaya/v2/logger"
 )
 
-type GameRoom struct {
-	ID         string
-	Name       string
-	MaxPlayers int
-	Players    map[string]*models.Player
-}
-
 type Room struct {
 	component.Base
 	app     pitaya.Pitaya
-	rooms   map[string]*GameRoom
-	players map[string]*models.Player // uid -> Player
-	mu      sync.RWMutex
+	rooms   map[string]*models.GameRoom
+	players map[string]*models.Player // Global UID -> Player (for quick check)
+	mu      sync.RWMutex              // Protects rooms and players maps
 }
 
 func NewRoom(app pitaya.Pitaya) *Room {
 	return &Room{
 		app:     app,
-		rooms:   make(map[string]*GameRoom),
+		rooms:   make(map[string]*models.GameRoom),
 		players: make(map[string]*models.Player),
 	}
 }
@@ -44,19 +38,13 @@ func (r *Room) Init() {
 	r.createRoom("Lobby", 100)
 }
 
-func (r *Room) createRoom(name string, maxPlayers int) *GameRoom {
+func (r *Room) createRoom(name string, maxPlayers int) *models.GameRoom {
 	id := uuid.New().String()
-	// Use simpler ID for Lobby if needed, but UUID is safer
 	if name == "Lobby" {
 		id = "lobby"
 	}
 
-	room := &GameRoom{
-		ID:         id,
-		Name:       name,
-		MaxPlayers: maxPlayers,
-		Players:    make(map[string]*models.Player),
-	}
+	room := models.NewGameRoom(id, name, maxPlayers)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -75,7 +63,7 @@ func (r *Room) createRoom(name string, maxPlayers int) *GameRoom {
 // Create Room Handler
 func (r *Room) Create(ctx context.Context, req *protocol.CreateRoomRequest) (*protocol.CreateRoomResponse, error) {
 	if req.Name == "" {
-		return nil, fmt.Errorf("room name cannot be empty")
+		return nil, gameerror.New(gameerror.CodeInvalidRequest, "room name cannot be empty")
 	}
 	max := int(req.MaxPlayers)
 	if max <= 0 {
@@ -102,7 +90,7 @@ func (r *Room) List(ctx context.Context, req *protocol.ListRoomsRequest) (*proto
 		res.Rooms = append(res.Rooms, &protocol.RoomInfo{
 			Id:    room.ID,
 			Name:  room.Name,
-			Count: int32(len(room.Players)),
+			Count: int32(room.PlayerCount()),
 			Max:   int32(room.MaxPlayers),
 		})
 	}
@@ -115,65 +103,60 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 	s := r.app.GetSessionFromCtx(ctx)
 	uid := fmt.Sprintf("%d", s.ID())
 
-	// Bind session if not already bound
 	if s.UID() == "" {
 		if err := s.Bind(ctx, uid); err != nil && err != constants.ErrSessionAlreadyBound {
-			return nil, err
+			return nil, gameerror.New(gameerror.CodeInternalError, err.Error())
 		}
 	}
 
 	r.mu.Lock()
-	// Use a defer for unlock, but be careful with async operations or long holding
-	// Here we hold lock for room check and player addition.
-	// GroupAddMember is potentially slow (network/redis), so we should release lock if possible.
-	// But releasing lock might cause race conditions on room capacity check.
-	// For standalone in-memory, it's fast. For cluster, GroupAddMember is remote.
-	// Since we are standalone, we can keep lock.
-	defer r.mu.Unlock()
+	if _, exists := r.players[uid]; exists {
+		r.mu.Unlock()
+		return nil, gameerror.New(gameerror.CodeAlreadyInRoom, "player already in a room")
+	}
 
 	roomID := req.RoomId
 	if roomID == "" {
-		roomID = "lobby" // Default to lobby
+		roomID = "lobby"
 	}
 
 	room, exists := r.rooms[roomID]
 	if !exists {
-		return nil, fmt.Errorf("room not found: %s", roomID)
+		r.mu.Unlock()
+		return nil, gameerror.New(gameerror.CodeRoomNotFound, fmt.Sprintf("room not found: %s", roomID))
 	}
 
-	if len(room.Players) >= room.MaxPlayers {
-		return nil, fmt.Errorf("room is full")
-	}
-
-	// Create Player Model
 	player := models.NewPlayer(uid, req.Name)
-	room.Players[uid] = player
 	r.players[uid] = player
+	r.mu.Unlock()
 
-	// Add to Pitaya Group
-	// Note: We are holding the lock here. If GroupAddMember blocks, we block all room ops.
-	// Ideally, we should reserve the slot, release lock, add to group, then commit.
-	// But for simplicity in this demo, we hold lock.
+	// Add to Room Model (Handles Room Lock)
+	if err := room.AddPlayer(player); err != nil {
+		// Rollback Global
+		r.mu.Lock()
+		delete(r.players, uid)
+		r.mu.Unlock()
+		return nil, gameerror.New(gameerror.CodeRoomFull, err.Error())
+	}
+
+	// IO: Add to Pitaya Group
 	if err := r.app.GroupAddMember(ctx, roomID, uid); err != nil {
 		logger.Log.Errorf("Failed to add member to group: %v", err)
 		// Rollback
-		delete(room.Players, uid)
+		room.RemovePlayer(uid)
+		r.mu.Lock()
 		delete(r.players, uid)
-		return nil, fmt.Errorf("failed to join room group")
+		r.mu.Unlock()
+		return nil, gameerror.New(gameerror.CodeInternalError, "failed to join room group")
 	}
 
-	// Save RoomID in session
 	s.Set("roomID", roomID)
 
-	// Notify others in room
-	// Using GroupBroadcast to send PlayerJoinPush
-	// This is async in Pitaya usually (pushes to channel), so it's fast.
 	r.app.GroupBroadcast(ctx, config.Conf.Server.Type, roomID, "OnPlayerJoin", &protocol.PlayerJoinPush{
 		Id:   player.ID,
 		Name: player.Name,
 	})
 
-	// Handle Session Close
 	s.OnClose(func() {
 		r.onPlayerDisconnect(uid, roomID)
 	})
@@ -181,7 +164,7 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 	logger.Log.Infof("Player %s joined room %s", uid, roomID)
 
 	return &protocol.JoinResponse{
-		Code:    200,
+		Code:    gameerror.CodeOK,
 		Message: "Joined successfully",
 		RoomId:  roomID,
 	}, nil
@@ -189,22 +172,23 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 
 func (r *Room) onPlayerDisconnect(uid, roomID string) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// Remove from global map
 	delete(r.players, uid)
+	room, exists := r.rooms[roomID]
+	r.mu.Unlock()
 
-	// Remove from room
-	if room, exists := r.rooms[roomID]; exists {
-		delete(room.Players, uid)
+	if !exists {
+		return
+	}
 
-		// Notify others
+	// Use Model method
+	if room.HasPlayer(uid) {
+		room.RemovePlayer(uid)
+
 		ctx := context.Background()
 		r.app.GroupRemoveMember(ctx, roomID, uid)
 		r.app.GroupBroadcast(ctx, config.Conf.Server.Type, roomID, "OnPlayerLeave", &protocol.PlayerLeavePush{
 			Id: uid,
 		})
-
 		logger.Log.Infof("Player %s left room %s", uid, roomID)
 	}
 }
@@ -217,7 +201,6 @@ func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) {
 		return
 	}
 
-	// Optimized: Only check session for RoomID, no iteration fallback
 	val := s.Get("roomID")
 	if val == nil {
 		return
@@ -227,22 +210,37 @@ func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) {
 		return
 	}
 
-	// Lock only to update player state in memory
-	r.mu.Lock()
-	player, ok := r.players[uid]
-	if ok {
-		player.Position = req.Position
-		player.Rotation = req.Rotation
-	}
-	r.mu.Unlock()
+	r.mu.RLock()
+	room, exists := r.rooms[roomID]
+	r.mu.RUnlock()
 
-	if !ok {
+	if !exists {
 		return
 	}
 
-	// Broadcast to others
-	// Optimization: Don't broadcast to self? GroupBroadcast sends to all.
-	// Clients usually ignore their own ID or predict movement.
+	// Get Player from Room Model
+	player := room.GetPlayer(uid)
+	if player == nil {
+		return
+	}
+
+	// Update Player State via Model (Validation included)
+	if err := player.UpdatePosition(req.Position, req.Rotation); err != nil {
+		// Validation failed! Send correction push to this user.
+		logger.Log.Warnf("Invalid move from %s: %v", uid, err)
+
+		// Push correction message to the specific user
+		// Use SendPushToUsers instead of Push (which is a Session method, not App method)
+		if _, err := r.app.SendPushToUsers("onForcePosition", &protocol.ForcePositionPush{
+			Position: player.Position, // Send last valid position
+			Rotation: player.Rotation,
+		}, []string{uid}, config.Conf.Server.Type); err != nil {
+			logger.Log.Errorf("Failed to push correction: %v", err)
+		}
+		return
+	}
+
+	// Broadcast valid move
 	err := r.app.GroupBroadcast(ctx, config.Conf.Server.Type, roomID, "OnPlayerMove", &protocol.PlayerMovePush{
 		Id:       uid,
 		Position: req.Position,
@@ -268,7 +266,6 @@ func (r *Room) Message(ctx context.Context, msg *protocol.ChatMessage) {
 		return
 	}
 
-	// Broadcast
 	r.app.GroupBroadcast(ctx, config.Conf.Server.Type, roomID, "OnMessage", &protocol.ChatMessage{
 		SenderId: uid,
 		Content:  msg.Content,
@@ -291,6 +288,5 @@ func (r *Room) Leave(ctx context.Context, req *protocol.LeaveRequest) {
 	}
 
 	r.onPlayerDisconnect(uid, roomID)
-	// Unbind session roomID?
 	s.Set("roomID", "")
 }

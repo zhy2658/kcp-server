@@ -1,7 +1,14 @@
 package models
 
 import (
+	"errors"
+	"math"
+
 	"3dtest-server/protocol"
+)
+
+const (
+	MaxSpeedPerTick = 10.0 // Units per sync (adjust based on game logic)
 )
 
 type Player struct {
@@ -26,4 +33,28 @@ func (p *Player) ToProto() *protocol.PlayerState {
 		Position: p.Position,
 		Rotation: p.Rotation,
 	}
+}
+
+// UpdatePosition updates the player's position with basic validation.
+// Returns error if the movement is invalid (e.g. too fast).
+func (p *Player) UpdatePosition(newPos *protocol.Vector3, newRot *protocol.Quaternion) error {
+	if newPos == nil {
+		return nil
+	}
+
+	dist := distance(p.Position, newPos)
+	if dist > MaxSpeedPerTick {
+		return errors.New("movement too fast")
+	}
+
+	p.Position = newPos
+	p.Rotation = newRot
+	return nil
+}
+
+func distance(a, b *protocol.Vector3) float64 {
+	dx := a.X - b.X
+	dy := a.Y - b.Y
+	dz := a.Z - b.Z
+	return math.Sqrt(float64(dx*dx + dy*dy + dz*dz))
 }

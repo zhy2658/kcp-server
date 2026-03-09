@@ -87,3 +87,8 @@ message PlayerMovePush {
   Vector3 position = 2;
   Quaternion rotation = 3;
 }
+
+message ForcePositionPush {
+  Vector3 position = 1;
+  Quaternion rotation = 2;
+}

@@ -873,6 +873,58 @@ func (x *PlayerMovePush) GetRotation() *Quaternion {
 	return nil
 }
 
+type ForcePositionPush struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Position      *Vector3               `protobuf:"bytes,1,opt,name=position,proto3" json:"position,omitempty"`
+	Rotation      *Quaternion            `protobuf:"bytes,2,opt,name=rotation,proto3" json:"rotation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ForcePositionPush) Reset() {
+	*x = ForcePositionPush{}
+	mi := &file_protocol_game_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ForcePositionPush) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ForcePositionPush) ProtoMessage() {}
+
+func (x *ForcePositionPush) ProtoReflect() protoreflect.Message {
+	mi := &file_protocol_game_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ForcePositionPush.ProtoReflect.Descriptor instead.
+func (*ForcePositionPush) Descriptor() ([]byte, []int) {
+	return file_protocol_game_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ForcePositionPush) GetPosition() *Vector3 {
+	if x != nil {
+		return x.Position
+	}
+	return nil
+}
+
+func (x *ForcePositionPush) GetRotation() *Quaternion {
+	if x != nil {
+		return x.Rotation
+	}
+	return nil
+}
+
 var File_protocol_game_proto protoreflect.FileDescriptor
 
 const file_protocol_game_proto_rawDesc = "" +
@@ -929,7 +981,10 @@ const file_protocol_game_proto_rawDesc = "" +
 	"\x0ePlayerMovePush\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12-\n" +
 	"\bposition\x18\x02 \x01(\v2\x11.protocol.Vector3R\bposition\x120\n" +
-	"\brotation\x18\x03 \x01(\v2\x14.protocol.QuaternionR\brotationB\x18Z\x163dtest-server/protocolb\x06proto3"
+	"\brotation\x18\x03 \x01(\v2\x14.protocol.QuaternionR\brotation\"t\n" +
+	"\x11ForcePositionPush\x12-\n" +
+	"\bposition\x18\x01 \x01(\v2\x11.protocol.Vector3R\bposition\x120\n" +
+	"\brotation\x18\x02 \x01(\v2\x14.protocol.QuaternionR\brotationB\x18Z\x163dtest-server/protocolb\x06proto3"
 
 var (
 	file_protocol_game_proto_rawDescOnce sync.Once
@@ -943,7 +998,7 @@ func file_protocol_game_proto_rawDescGZIP() []byte {
 	return file_protocol_game_proto_rawDescData
 }
 
-var file_protocol_game_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_protocol_game_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_protocol_game_proto_goTypes = []any{
 	(*CreateRoomRequest)(nil),  // 0: protocol.CreateRoomRequest
 	(*CreateRoomResponse)(nil), // 1: protocol.CreateRoomResponse
@@ -961,6 +1016,7 @@ var file_protocol_game_proto_goTypes = []any{
 	(*PlayerJoinPush)(nil),     // 13: protocol.PlayerJoinPush
 	(*PlayerLeavePush)(nil),    // 14: protocol.PlayerLeavePush
 	(*PlayerMovePush)(nil),     // 15: protocol.PlayerMovePush
+	(*ForcePositionPush)(nil),  // 16: protocol.ForcePositionPush
 }
 var file_protocol_game_proto_depIdxs = []int32{
 	3, // 0: protocol.ListRoomsResponse.rooms:type_name -> protocol.RoomInfo
@@ -970,11 +1026,13 @@ var file_protocol_game_proto_depIdxs = []int32{
 	9, // 4: protocol.MoveRequest.rotation:type_name -> protocol.Quaternion
 	8, // 5: protocol.PlayerMovePush.position:type_name -> protocol.Vector3
 	9, // 6: protocol.PlayerMovePush.rotation:type_name -> protocol.Quaternion
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	8, // 7: protocol.ForcePositionPush.position:type_name -> protocol.Vector3
+	9, // 8: protocol.ForcePositionPush.rotation:type_name -> protocol.Quaternion
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_protocol_game_proto_init() }
@@ -988,7 +1046,7 @@ func file_protocol_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_protocol_game_proto_rawDesc), len(file_protocol_game_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
