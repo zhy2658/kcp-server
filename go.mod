@@ -6,8 +6,8 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.3
 	github.com/sirupsen/logrus v1.9.3
-	github.com/topfreegames/pitaya/v2 v2.11.21
-	github.com/xtaci/kcp-go/v5 v5.6.70
+	github.com/topfreegames/pitaya/v2 v2.11.6
+	github.com/xtaci/kcp-go/v5 v5.6.5
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
@@ -36,8 +36,8 @@ require (
 	github.com/mailgun/proxyproto v1.0.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/nats-io/nats.go v1.39.0 // indirect
-	github.com/nats-io/nkeys v0.4.9 // indirect
+	github.com/nats-io/nats.go v1.31.0 // indirect
+	github.com/nats-io/nkeys v0.4.6 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.7 // indirect
@@ -52,6 +52,8 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.15.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
+	github.com/templexxx/cpu v0.1.0 // indirect
+	github.com/templexxx/xorsimd v0.4.2 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/topfreegames/go-workers v1.2.1 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.11 // indirect
@@ -60,14 +62,14 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/crypto v0.45.0 // indirect
-	golang.org/x/mod v0.29.0 // indirect
-	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/mod v0.25.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
-	golang.org/x/tools v0.38.0 // indirect
+	golang.org/x/tools v0.14.0 // indirect
 	google.golang.org/genproto v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect

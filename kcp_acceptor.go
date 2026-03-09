@@ -30,7 +30,7 @@ func (k *kcpPlayerConn) GetNextMessage() (b []byte, err error) {
 	if _, err := io.ReadFull(k.Conn, header); err != nil {
 		return nil, err
 	}
-	
+
 	// 2. Parse header to get message size
 	msgSize, _, err := codec.ParseHeader(header)
 	if err != nil {
@@ -90,18 +90,18 @@ func (a *KCPAcceptor) EnableProxyProtocol() {
 }
 
 func (a *KCPAcceptor) ListenAndServe() {
-	// Use nil block for no encryption. 
+	// Use nil block for no encryption.
 	// For production, consider using a block cipher like kcp.NewAESBlockCrypt
 	l, err := kcp.ListenWithOptions(a.addr, nil, 10, 3)
 	if err != nil {
 		logger.Log.Fatalf("Failed to listen: %s", err.Error())
 	}
-	
+
 	a.listener = l
 	a.running = true
-	
+
 	defer a.Stop()
-	
+
 	logger.Log.Infof("KCP Acceptor listening on %s", a.addr)
 
 	for a.running {
@@ -110,7 +110,7 @@ func (a *KCPAcceptor) ListenAndServe() {
 			logger.Log.Errorf("Failed to accept KCP connection: %s", err.Error())
 			continue
 		}
-		
+
 		// Configure KCP parameters for low latency
 		if kcpConn, ok := conn.(*kcp.UDPSession); ok {
 			// NoDelay(nodelay, interval, resend, nc)
@@ -119,10 +119,10 @@ func (a *KCPAcceptor) ListenAndServe() {
 			// resend: 0:disable fast resend(default), 1:enable fast resend
 			// nc: 0:normal congestion control(default), 1:disable congestion control
 			kcpConn.SetNoDelay(1, 10, 2, 1)
-			
+
 			// Pitaya protocol relies on stream processing (Head + Body)
-			kcpConn.SetStreamMode(true) 
-			
+			kcpConn.SetStreamMode(true)
+
 			kcpConn.SetWindowSize(128, 128)
 			kcpConn.SetACKNoDelay(true)
 		}
