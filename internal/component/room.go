@@ -213,10 +213,14 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 
 	s.Set("roomID", roomID)
 
-	r.app.GroupBroadcast(ctx, config.Conf.Server.Type, roomID, "OnPlayerJoin", &protocol.PlayerJoinPush{
-		Id:   player.ID,
-		Name: player.Name,
-	})
+	// Broadcast Join to AOI Neighbors only
+	neighbors, _ := room.AOI.GetNeighbors(uid)
+	if len(neighbors) > 0 {
+		r.app.SendPushToUsers("OnPlayerJoin", &protocol.PlayerJoinPush{
+			Id:   player.ID,
+			Name: player.Name,
+		}, neighbors, config.Conf.Server.Type)
+	}
 
 	s.OnClose(func() {
 		r.onPlayerDisconnect(uid, roomID)
@@ -244,13 +248,21 @@ func (r *Room) onPlayerDisconnect(uid, roomID string) {
 
 	// Use Model method
 	if room.HasPlayer(uid) {
+		// Get neighbors before removing for broadcast
+		neighbors, _ := room.AOI.GetNeighbors(uid)
+
 		room.RemovePlayer(uid)
 
 		ctx := context.Background()
 		r.app.GroupRemoveMember(ctx, roomID, uid)
-		r.app.GroupBroadcast(ctx, config.Conf.Server.Type, roomID, "OnPlayerLeave", &protocol.PlayerLeavePush{
-			Id: uid,
-		})
+
+		// Broadcast only to AOI neighbors
+		if len(neighbors) > 0 {
+			r.app.SendPushToUsers("OnPlayerLeave", &protocol.PlayerLeavePush{
+				Id: uid,
+			}, neighbors, config.Conf.Server.Type)
+		}
+
 		logger.Log.Infof("Player %s left room %s", uid, roomID)
 		r.LogEvent("Player %s left room %s", uid, roomID)
 	}
@@ -303,16 +315,66 @@ func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) {
 		return
 	}
 
-	// Broadcast valid move
-	logger.Log.Debugf("Player %s moved to: %v", uid, req.Position)
-	err := r.app.GroupBroadcast(ctx, config.Conf.Server.Type, roomID, "OnPlayerMove", &protocol.PlayerMovePush{
-		Id:       uid,
-		Position: req.Position,
-		Rotation: req.Rotation,
-	})
+	// Calculate AOI: Get entities that need to be notified
+	// NOTE: We only notify neighbors about the move.
+	// We don't need to handle Enter/Leave AOI here because Move() returns leave/enter lists
+	// But for simple movement sync, we just broadcast to neighbors.
+	// Wait, Move() returns leave/enter lists which we should handle!
+
+	leaveIDs, enterIDs, err := room.AOI.Move(uid, req.Position)
 	if err != nil {
-		logger.Log.Errorf("Move broadcast failed: %v", err)
+		logger.Log.Errorf("AOI Move failed: %v", err)
+		return
 	}
+
+	// 1. Handle AOI Enter/Leave events
+	// Notify 'enterIDs' that 'uid' has entered their view
+	if len(enterIDs) > 0 {
+		r.app.SendPushToUsers("OnPlayerEnterAOI", &protocol.PlayerState{
+			Id:       player.ID,
+			Position: player.Position,
+			Rotation: player.Rotation,
+		}, enterIDs, config.Conf.Server.Type)
+
+		// Notify 'uid' about 'enterIDs' (they entered my view)
+		for _, eid := range enterIDs {
+			otherPlayer := room.GetPlayer(eid)
+			if otherPlayer != nil {
+				r.app.SendPushToUsers("OnPlayerEnterAOI", &protocol.PlayerState{
+					Id:       otherPlayer.ID,
+					Position: otherPlayer.Position,
+					Rotation: otherPlayer.Rotation,
+				}, []string{uid}, config.Conf.Server.Type)
+			}
+		}
+	}
+
+	// Notify 'leaveIDs' that 'uid' has left their view
+	if len(leaveIDs) > 0 {
+		r.app.SendPushToUsers("OnPlayerLeaveAOI", &protocol.PlayerLeavePush{
+			Id: uid,
+		}, leaveIDs, config.Conf.Server.Type)
+
+		// Notify 'uid' about 'leaveIDs' (they left my view)
+		for _, eid := range leaveIDs {
+			r.app.SendPushToUsers("OnPlayerLeaveAOI", &protocol.PlayerLeavePush{
+				Id: eid,
+			}, []string{uid}, config.Conf.Server.Type)
+		}
+	}
+
+	// 2. Broadcast movement to current neighbors (AOI)
+	// Instead of GroupBroadcast (which is everyone in room), we use AOI neighbors
+	neighbors, _ := room.AOI.GetNeighbors(uid)
+	if len(neighbors) > 0 {
+		r.app.SendPushToUsers("OnPlayerMove", &protocol.PlayerMovePush{
+			Id:       uid,
+			Position: req.Position,
+			Rotation: req.Rotation,
+		}, neighbors, config.Conf.Server.Type)
+	}
+
+	logger.Log.Debugf("Player %s moved to: %v. Neighbors: %d", uid, req.Position, len(neighbors))
 }
 
 // Message Handler (Notify) - Chat

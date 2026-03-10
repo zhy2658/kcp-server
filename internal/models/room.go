@@ -3,6 +3,8 @@ package models
 import (
 	"errors"
 	"sync"
+
+	"3dtest-server/internal/aoi"
 )
 
 type GameRoom struct {
@@ -10,6 +12,7 @@ type GameRoom struct {
 	Name       string
 	MaxPlayers int
 	Players    map[string]*Player
+	AOI        aoi.Manager
 	mu         sync.RWMutex
 }
 
@@ -19,6 +22,7 @@ func NewGameRoom(id, name string, maxPlayers int) *GameRoom {
 		Name:       name,
 		MaxPlayers: maxPlayers,
 		Players:    make(map[string]*Player),
+		AOI:        aoi.NewGridManager(-100, 100, -100, 100, 20), // Default 200x200 world, 20 unit grid
 	}
 }
 
@@ -36,6 +40,11 @@ func (r *GameRoom) AddPlayer(p *Player) error {
 		return errors.New("player already in room")
 	}
 
+	// Add to AOI
+	if err := r.AOI.Enter(p.ID, p.Position); err != nil {
+		return err
+	}
+
 	r.Players[p.ID] = p
 	return nil
 }
@@ -44,6 +53,10 @@ func (r *GameRoom) AddPlayer(p *Player) error {
 func (r *GameRoom) RemovePlayer(uid string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	// Remove from AOI first
+	r.AOI.Leave(uid)
+
 	delete(r.Players, uid)
 }
 
@@ -79,4 +92,3 @@ func (r *GameRoom) GetPlayers() []*Player {
 	}
 	return players
 }
-
