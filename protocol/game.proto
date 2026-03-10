@@ -41,6 +41,11 @@ message JoinResponse {
 
 message LeaveRequest {}
 
+message LeaveResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
 // Player State & Movement
 message Vector3 {
   float x = 1;

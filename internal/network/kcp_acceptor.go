@@ -28,27 +28,30 @@ type kcpPlayerConn struct {
 
 // GetNextMessage reads the next message available in the stream
 func (k *kcpPlayerConn) GetNextMessage() (b []byte, err error) {
-	// 1. Read header (HeadLength is usually 4 bytes)
+	// Add recovery to prevent server crash on panic inside GetNextMessage
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic in GetNextMessage: %v", r)
+			logger.Log.Errorf("Recovered from panic in KCP GetNextMessage: %v", r)
+		}
+	}()
+
 	header := make([]byte, codec.HeadLength)
-	// Use ReadFull to ensure we get the full header
 	if _, err := io.ReadFull(k.Conn, header); err != nil {
 		return nil, err
 	}
 
-	// 2. Parse header to get message size
-	msgSize, _, err := codec.ParseHeader(header)
+	size, _, err := codec.ParseHeader(header)
 	if err != nil {
 		return nil, err
 	}
 
-	// 3. Read message body
-	msgData := make([]byte, msgSize)
-	if _, err := io.ReadFull(k.Conn, msgData); err != nil {
+	msg := make([]byte, size)
+	if _, err := io.ReadFull(k.Conn, msg); err != nil {
 		return nil, err
 	}
 
-	// 4. Return combined data
-	return append(header, msgData...), nil
+	return append(header, msg...), nil
 }
 
 // Ensure kcpPlayerConn implements acceptor.PlayerConn

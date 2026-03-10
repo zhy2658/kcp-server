@@ -16,6 +16,7 @@ type GameRoom struct {
 	mu         sync.RWMutex
 }
 
+// NewGameRoom creates a new game room.
 func NewGameRoom(id, name string, maxPlayers int) *GameRoom {
 	return &GameRoom{
 		ID:         id,
@@ -40,7 +41,7 @@ func (r *GameRoom) AddPlayer(p *Player) error {
 		return errors.New("player already in room")
 	}
 
-	// Add to AOI
+	// Add to AOI first
 	if err := r.AOI.Enter(p.ID, p.Position); err != nil {
 		return err
 	}
@@ -54,7 +55,12 @@ func (r *GameRoom) RemovePlayer(uid string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Remove from AOI first
+	// Check if player exists first
+	if _, exists := r.Players[uid]; !exists {
+		return
+	}
+
+	// Remove from AOI
 	r.AOI.Leave(uid)
 
 	delete(r.Players, uid)

@@ -172,9 +172,35 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 
 	r.mu.Lock()
 	if _, exists := r.players[uid]; exists {
-		r.mu.Unlock()
-		return nil, gameerror.New(gameerror.CodeAlreadyInRoom, "player already in a room")
+		// Player is already in a room. Check if we can auto-leave.
+		r.mu.Unlock() // Unlock to avoid deadlock in onPlayerDisconnect
+
+		// Get current room ID from session
+		oldRoomVal := s.Get("roomID")
+		if oldRoomID, ok := oldRoomVal.(string); ok && oldRoomID != "" {
+			if oldRoomID == req.RoomId {
+				return nil, gameerror.New(gameerror.CodeAlreadyInRoom, "player already in this room")
+			}
+			// Auto-leave the old room
+			logger.Log.Infof("Player %s switching from room %s to %s", uid, oldRoomID, req.RoomId)
+			r.onPlayerDisconnect(uid, oldRoomID)
+		} else {
+			// Inconsistent state: r.players has uid but session has no roomID.
+			// Force clean up r.players
+			r.mu.Lock()
+			delete(r.players, uid)
+			r.mu.Unlock()
+		}
+
+		// Re-acquire lock to check again (though we just cleared it, another request could have come in)
+		r.mu.Lock()
+		if _, exists := r.players[uid]; exists {
+			r.mu.Unlock()
+			return nil, gameerror.New(gameerror.CodeAlreadyInRoom, "player already in a room (race condition)")
+		}
 	}
+
+	// Important: Lock is held here if we reached this point
 
 	roomID := req.RoomId
 	if roomID == "" {
@@ -182,6 +208,18 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 	}
 
 	room, exists := r.rooms[roomID]
+	if !exists {
+		// Try to find room by name if ID lookup fails
+		for _, v := range r.rooms {
+			if v.Name == roomID {
+				room = v
+				exists = true
+				roomID = v.ID // Update roomID to correct UUID
+				break
+			}
+		}
+	}
+
 	if !exists {
 		r.mu.Unlock()
 		return nil, gameerror.New(gameerror.CodeRoomNotFound, fmt.Sprintf("room not found: %s", roomID))
@@ -214,6 +252,9 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 	s.Set("roomID", roomID)
 
 	// Broadcast Join to AOI Neighbors only
+	// NOTE: AOI Logic handles the broadcast, but we need to make sure the player is in AOI first.
+	// AddPlayer called r.AOI.Enter(), so they are in.
+
 	neighbors, _ := room.AOI.GetNeighbors(uid)
 	if len(neighbors) > 0 {
 		r.app.SendPushToUsers("OnPlayerJoin", &protocol.PlayerJoinPush{
@@ -222,8 +263,26 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 		}, neighbors, config.Conf.Server.Type)
 	}
 
+	// NEW: Also send 'OnPlayerEnterAOI' to the joining player for all existing neighbors!
+	// Otherwise the new player sees nobody until they move.
+	// Since AOI.GetNeighbors returns existing entities, we can reuse it.
+	for _, neighborID := range neighbors {
+		neighbor := room.GetPlayer(neighborID)
+		if neighbor != nil {
+			r.app.SendPushToUsers("OnPlayerEnterAOI", &protocol.PlayerState{
+				Id:       neighbor.ID,
+				Position: neighbor.Position,
+				Rotation: neighbor.Rotation,
+			}, []string{uid}, config.Conf.Server.Type)
+		}
+	}
+
 	s.OnClose(func() {
-		r.onPlayerDisconnect(uid, roomID)
+		// Read current roomID from session instead of using closure-captured value
+		val := s.Get("roomID")
+		if currentRoomID, ok := val.(string); ok && currentRoomID != "" {
+			r.onPlayerDisconnect(uid, currentRoomID)
+		}
 	})
 
 	logger.Log.Infof("Player %s joined room %s", uid, roomID)
@@ -256,12 +315,18 @@ func (r *Room) onPlayerDisconnect(uid, roomID string) {
 		ctx := context.Background()
 		r.app.GroupRemoveMember(ctx, roomID, uid)
 
-		// Broadcast only to AOI neighbors
+		// Broadcast to AOI neighbors that player left
 		if len(neighbors) > 0 {
 			r.app.SendPushToUsers("OnPlayerLeave", &protocol.PlayerLeavePush{
 				Id: uid,
 			}, neighbors, config.Conf.Server.Type)
 		}
+
+		// ALSO Broadcast to the ENTIRE ROOM group about player count change
+		// This is for TUI /list or any global count listeners
+		r.app.GroupBroadcast(context.Background(), config.Conf.Server.Type, roomID, "OnPlayerLeave", &protocol.PlayerLeavePush{
+			Id: uid,
+		})
 
 		logger.Log.Infof("Player %s left room %s", uid, roomID)
 		r.LogEvent("Player %s left room %s", uid, roomID)
@@ -400,20 +465,57 @@ func (r *Room) Message(ctx context.Context, msg *protocol.ChatMessage) {
 }
 
 // Leave Handler
-func (r *Room) Leave(ctx context.Context, req *protocol.LeaveRequest) {
+func (r *Room) Leave(ctx context.Context, req *protocol.LeaveRequest) (*protocol.LeaveResponse, error) {
 	s := r.app.GetSessionFromCtx(ctx)
 	uid := s.UID()
 
 	val := s.Get("roomID")
 	if val == nil {
-		return
+		return &protocol.LeaveResponse{
+			Code:    200,
+			Message: "Not in any room",
+		}, nil
 	}
 	roomID, ok := val.(string)
-
 	if !ok || roomID == "" {
-		return
+		// Even if roomID is not set in session, we should check if player is in global map
+		// and clean up if necessary to fix state inconsistencies
+		r.mu.Lock()
+		_, exists := r.players[uid]
+		r.mu.Unlock()
+		if exists {
+			// Find which room they are in?
+			// This is expensive, but for correctness:
+			r.mu.RLock()
+			var realRoomID string
+			for rid, room := range r.rooms {
+				if room.HasPlayer(uid) {
+					realRoomID = rid
+					break
+				}
+			}
+			r.mu.RUnlock()
+
+			if realRoomID != "" {
+				r.onPlayerDisconnect(uid, realRoomID)
+			} else {
+				// Just clean up global map
+				r.mu.Lock()
+				delete(r.players, uid)
+				r.mu.Unlock()
+			}
+		}
+		return &protocol.LeaveResponse{
+			Code:    200,
+			Message: "Left room successfully",
+		}, nil
 	}
 
 	r.onPlayerDisconnect(uid, roomID)
 	s.Set("roomID", "")
+
+	return &protocol.LeaveResponse{
+		Code:    200,
+		Message: "Left room successfully",
+	}, nil
 }
