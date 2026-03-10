@@ -7,12 +7,11 @@
 package protocol
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -716,6 +715,66 @@ func (x *MoveRequest) GetRotation() *Quaternion {
 	return nil
 }
 
+type MoveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          int32                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Position      *Vector3               `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"` // Server-confirmed position
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveResponse) Reset() {
+	*x = MoveResponse{}
+	mi := &file_protocol_game_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveResponse) ProtoMessage() {}
+
+func (x *MoveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_protocol_game_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveResponse.ProtoReflect.Descriptor instead.
+func (*MoveResponse) Descriptor() ([]byte, []int) {
+	return file_protocol_game_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *MoveResponse) GetCode() int32 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *MoveResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *MoveResponse) GetPosition() *Vector3 {
+	if x != nil {
+		return x.Position
+	}
+	return nil
+}
+
 // Chat (Existing)
 type ChatMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -727,7 +786,7 @@ type ChatMessage struct {
 
 func (x *ChatMessage) Reset() {
 	*x = ChatMessage{}
-	mi := &file_protocol_game_proto_msgTypes[13]
+	mi := &file_protocol_game_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -739,7 +798,7 @@ func (x *ChatMessage) String() string {
 func (*ChatMessage) ProtoMessage() {}
 
 func (x *ChatMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_protocol_game_proto_msgTypes[13]
+	mi := &file_protocol_game_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -752,7 +811,7 @@ func (x *ChatMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatMessage.ProtoReflect.Descriptor instead.
 func (*ChatMessage) Descriptor() ([]byte, []int) {
-	return file_protocol_game_proto_rawDescGZIP(), []int{13}
+	return file_protocol_game_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ChatMessage) GetSenderId() string {
@@ -780,7 +839,7 @@ type PlayerJoinPush struct {
 
 func (x *PlayerJoinPush) Reset() {
 	*x = PlayerJoinPush{}
-	mi := &file_protocol_game_proto_msgTypes[14]
+	mi := &file_protocol_game_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -792,7 +851,7 @@ func (x *PlayerJoinPush) String() string {
 func (*PlayerJoinPush) ProtoMessage() {}
 
 func (x *PlayerJoinPush) ProtoReflect() protoreflect.Message {
-	mi := &file_protocol_game_proto_msgTypes[14]
+	mi := &file_protocol_game_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -805,7 +864,7 @@ func (x *PlayerJoinPush) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerJoinPush.ProtoReflect.Descriptor instead.
 func (*PlayerJoinPush) Descriptor() ([]byte, []int) {
-	return file_protocol_game_proto_rawDescGZIP(), []int{14}
+	return file_protocol_game_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PlayerJoinPush) GetId() string {
@@ -831,7 +890,7 @@ type PlayerLeavePush struct {
 
 func (x *PlayerLeavePush) Reset() {
 	*x = PlayerLeavePush{}
-	mi := &file_protocol_game_proto_msgTypes[15]
+	mi := &file_protocol_game_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -843,7 +902,7 @@ func (x *PlayerLeavePush) String() string {
 func (*PlayerLeavePush) ProtoMessage() {}
 
 func (x *PlayerLeavePush) ProtoReflect() protoreflect.Message {
-	mi := &file_protocol_game_proto_msgTypes[15]
+	mi := &file_protocol_game_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -856,7 +915,7 @@ func (x *PlayerLeavePush) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerLeavePush.ProtoReflect.Descriptor instead.
 func (*PlayerLeavePush) Descriptor() ([]byte, []int) {
-	return file_protocol_game_proto_rawDescGZIP(), []int{15}
+	return file_protocol_game_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *PlayerLeavePush) GetId() string {
@@ -877,7 +936,7 @@ type PlayerMovePush struct {
 
 func (x *PlayerMovePush) Reset() {
 	*x = PlayerMovePush{}
-	mi := &file_protocol_game_proto_msgTypes[16]
+	mi := &file_protocol_game_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -889,7 +948,7 @@ func (x *PlayerMovePush) String() string {
 func (*PlayerMovePush) ProtoMessage() {}
 
 func (x *PlayerMovePush) ProtoReflect() protoreflect.Message {
-	mi := &file_protocol_game_proto_msgTypes[16]
+	mi := &file_protocol_game_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -902,7 +961,7 @@ func (x *PlayerMovePush) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerMovePush.ProtoReflect.Descriptor instead.
 func (*PlayerMovePush) Descriptor() ([]byte, []int) {
-	return file_protocol_game_proto_rawDescGZIP(), []int{16}
+	return file_protocol_game_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PlayerMovePush) GetId() string {
@@ -936,7 +995,7 @@ type ForcePositionPush struct {
 
 func (x *ForcePositionPush) Reset() {
 	*x = ForcePositionPush{}
-	mi := &file_protocol_game_proto_msgTypes[17]
+	mi := &file_protocol_game_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -948,7 +1007,7 @@ func (x *ForcePositionPush) String() string {
 func (*ForcePositionPush) ProtoMessage() {}
 
 func (x *ForcePositionPush) ProtoReflect() protoreflect.Message {
-	mi := &file_protocol_game_proto_msgTypes[17]
+	mi := &file_protocol_game_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -961,7 +1020,7 @@ func (x *ForcePositionPush) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForcePositionPush.ProtoReflect.Descriptor instead.
 func (*ForcePositionPush) Descriptor() ([]byte, []int) {
-	return file_protocol_game_proto_rawDescGZIP(), []int{17}
+	return file_protocol_game_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ForcePositionPush) GetPosition() *Vector3 {
@@ -1025,7 +1084,11 @@ const file_protocol_game_proto_rawDesc = "" +
 	"\brotation\x18\x03 \x01(\v2\x14.protocol.QuaternionR\brotation\"n\n" +
 	"\vMoveRequest\x12-\n" +
 	"\bposition\x18\x01 \x01(\v2\x11.protocol.Vector3R\bposition\x120\n" +
-	"\brotation\x18\x02 \x01(\v2\x14.protocol.QuaternionR\brotation\"D\n" +
+	"\brotation\x18\x02 \x01(\v2\x14.protocol.QuaternionR\brotation\"k\n" +
+	"\fMoveResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12-\n" +
+	"\bposition\x18\x03 \x01(\v2\x11.protocol.Vector3R\bposition\"D\n" +
 	"\vChatMessage\x12\x1b\n" +
 	"\tsender_id\x18\x01 \x01(\tR\bsenderId\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\"4\n" +
@@ -1054,7 +1117,7 @@ func file_protocol_game_proto_rawDescGZIP() []byte {
 	return file_protocol_game_proto_rawDescData
 }
 
-var file_protocol_game_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_protocol_game_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_protocol_game_proto_goTypes = []any{
 	(*CreateRoomRequest)(nil),  // 0: protocol.CreateRoomRequest
 	(*CreateRoomResponse)(nil), // 1: protocol.CreateRoomResponse
@@ -1069,11 +1132,12 @@ var file_protocol_game_proto_goTypes = []any{
 	(*Quaternion)(nil),         // 10: protocol.Quaternion
 	(*PlayerState)(nil),        // 11: protocol.PlayerState
 	(*MoveRequest)(nil),        // 12: protocol.MoveRequest
-	(*ChatMessage)(nil),        // 13: protocol.ChatMessage
-	(*PlayerJoinPush)(nil),     // 14: protocol.PlayerJoinPush
-	(*PlayerLeavePush)(nil),    // 15: protocol.PlayerLeavePush
-	(*PlayerMovePush)(nil),     // 16: protocol.PlayerMovePush
-	(*ForcePositionPush)(nil),  // 17: protocol.ForcePositionPush
+	(*MoveResponse)(nil),       // 13: protocol.MoveResponse
+	(*ChatMessage)(nil),        // 14: protocol.ChatMessage
+	(*PlayerJoinPush)(nil),     // 15: protocol.PlayerJoinPush
+	(*PlayerLeavePush)(nil),    // 16: protocol.PlayerLeavePush
+	(*PlayerMovePush)(nil),     // 17: protocol.PlayerMovePush
+	(*ForcePositionPush)(nil),  // 18: protocol.ForcePositionPush
 }
 var file_protocol_game_proto_depIdxs = []int32{
 	3,  // 0: protocol.ListRoomsResponse.rooms:type_name -> protocol.RoomInfo
@@ -1081,15 +1145,16 @@ var file_protocol_game_proto_depIdxs = []int32{
 	10, // 2: protocol.PlayerState.rotation:type_name -> protocol.Quaternion
 	9,  // 3: protocol.MoveRequest.position:type_name -> protocol.Vector3
 	10, // 4: protocol.MoveRequest.rotation:type_name -> protocol.Quaternion
-	9,  // 5: protocol.PlayerMovePush.position:type_name -> protocol.Vector3
-	10, // 6: protocol.PlayerMovePush.rotation:type_name -> protocol.Quaternion
-	9,  // 7: protocol.ForcePositionPush.position:type_name -> protocol.Vector3
-	10, // 8: protocol.ForcePositionPush.rotation:type_name -> protocol.Quaternion
-	9,  // [9:9] is the sub-list for method output_type
-	9,  // [9:9] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	9,  // 5: protocol.MoveResponse.position:type_name -> protocol.Vector3
+	9,  // 6: protocol.PlayerMovePush.position:type_name -> protocol.Vector3
+	10, // 7: protocol.PlayerMovePush.rotation:type_name -> protocol.Quaternion
+	9,  // 8: protocol.ForcePositionPush.position:type_name -> protocol.Vector3
+	10, // 9: protocol.ForcePositionPush.rotation:type_name -> protocol.Quaternion
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_protocol_game_proto_init() }
@@ -1103,7 +1168,7 @@ func file_protocol_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_protocol_game_proto_rawDesc), len(file_protocol_game_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
