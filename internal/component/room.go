@@ -3,10 +3,10 @@ package component
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 
 	"3dtest-server/internal/config"
+	"3dtest-server/internal/dashboard"
 	"3dtest-server/internal/gameerror"
 	"3dtest-server/internal/models"
 	"3dtest-server/protocol"
@@ -46,35 +46,52 @@ func (r *Room) LogEvent(format string, args ...interface{}) {
 	r.events = append(r.events, msg)
 }
 
-func (r *Room) GetStats() (int, int, []string, []string) {
+func (r *Room) GetDashboardData() dashboard.Data {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	roomCount := len(r.rooms)
-	playerCount := len(r.players)
-
-	roomDetails := make([]string, 0, roomCount)
+	// Snapshot global state to minimize lock contention
+	totalPlayers := len(r.players)
+	roomSnapshot := make([]*models.GameRoom, 0, len(r.rooms))
 	for _, room := range r.rooms {
-		players := room.GetPlayers()
-		
-		pDetails := fmt.Sprintf("\n  %-10s | %-20s", "PLAYER", "POSITION (X,Y,Z)")
-		pDetails += fmt.Sprintf("\n  %s", strings.Repeat("-", 35))
-		
-		if len(players) == 0 {
-			pDetails += "\n  (no players)"
-		} else {
-			for _, p := range players {
-				pDetails += fmt.Sprintf("\n  %-10s | %.1f, %.1f, %.1f", p.Name, p.Position.X, p.Position.Y, p.Position.Z)
-			}
-		}
-		
-		roomDetails = append(roomDetails, fmt.Sprintf("[%s] %s (%d/%d):%s", room.ID, room.Name, len(players), room.MaxPlayers, pDetails))
+		roomSnapshot = append(roomSnapshot, room)
+	}
+	eventsSnapshot := make([]string, len(r.events))
+	copy(eventsSnapshot, r.events)
+	r.mu.RUnlock()
+
+	data := dashboard.Data{
+		TotalRooms:   len(roomSnapshot),
+		TotalPlayers: totalPlayers,
+		Rooms:        make([]dashboard.RoomInfo, 0, len(roomSnapshot)),
+		Events:       make([]string, len(eventsSnapshot)),
 	}
 
-	eventsCopy := make([]string, len(r.events))
-	copy(eventsCopy, r.events)
+	for _, room := range roomSnapshot {
+		players := room.GetPlayers()
+		pInfos := make([]dashboard.PlayerInfo, 0, len(players))
+		for _, p := range players {
+			pInfos = append(pInfos, dashboard.PlayerInfo{
+				Name: p.Name,
+				X:    p.Position.X,
+				Y:    p.Position.Y,
+				Z:    p.Position.Z,
+			})
+		}
 
-	return roomCount, playerCount, roomDetails, eventsCopy
+		data.Rooms = append(data.Rooms, dashboard.RoomInfo{
+			ID:          room.ID,
+			Name:        room.Name,
+			PlayerCount: len(players),
+			MaxPlayers:  room.MaxPlayers,
+			Players:     pInfos,
+		})
+	}
+
+	// Copy events in reverse order (newest first)
+	for i, e := range eventsSnapshot {
+		data.Events[len(eventsSnapshot)-1-i] = e
+	}
+
+	return data
 }
 
 func (r *Room) Init() {

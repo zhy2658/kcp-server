@@ -23,3 +23,6 @@ log:
 game:
   heartbeat_interval: 30s
   max_room_players: 10
+
+dashboard:
+  enabled: true

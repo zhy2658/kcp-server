@@ -3,12 +3,13 @@ package app
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"strings"
-
-	"time"
 
 	"3dtest-server/internal/component"
 	"3dtest-server/internal/config"
+	"3dtest-server/internal/dashboard"
 	"3dtest-server/internal/network"
 	"3dtest-server/internal/serializer"
 
@@ -54,8 +55,13 @@ func NewLogger(cfg *config.Config) logrus.FieldLogger {
 		MaxAge:     cfg.Log.MaxAge,
 	}
 
-	// Disable Stdout to allow Dashboard TUI
-	l.SetOutput(fileLogger)
+	if cfg.Dashboard.Enabled {
+		// Dashboard enabled: Log only to file to keep console clean
+		l.SetOutput(fileLogger)
+	} else {
+		// Dashboard disabled: Log to both file and stdout
+		l.SetOutput(io.MultiWriter(os.Stdout, fileLogger))
+	}
 
 	// Set global Pitaya logger as well
 	logger.SetLogger(logruswrapper.NewWithFieldLogger(l))
@@ -63,7 +69,7 @@ func NewLogger(cfg *config.Config) logrus.FieldLogger {
 	return l
 }
 
-func NewPitayaBuilder(cfg *config.Config) *pitaya.Builder {
+func NewPitayaBuilder(cfg *config.Config, _ logrus.FieldLogger) *pitaya.Builder {
 	pitayaConfig := pitayaconfig.NewDefaultPitayaConfig()
 	pitayaConfig.Heartbeat.Interval = cfg.Game.HeartbeatInterval
 	pitayaConfig.Metrics.Prometheus.Enabled = true
@@ -89,7 +95,7 @@ func RegisterComponents(app pitaya.Pitaya, room *component.Room) {
 	)
 }
 
-func StartApp(lc fx.Lifecycle, app pitaya.Pitaya, cfg *config.Config) {
+func StartApp(lc fx.Lifecycle, app pitaya.Pitaya, cfg *config.Config, _ logrus.FieldLogger) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
@@ -104,46 +110,14 @@ func StartApp(lc fx.Lifecycle, app pitaya.Pitaya, cfg *config.Config) {
 	})
 }
 
-func StartDashboard(lc fx.Lifecycle, room *component.Room) {
+func StartDashboard(lc fx.Lifecycle, room *component.Room, cfg *config.Config) {
+	if !cfg.Dashboard.Enabled {
+		return
+	}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			go func() {
-				ticker := time.NewTicker(200 * time.Millisecond)
-				for range ticker.C {
-					printDashboard(room)
-				}
-			}()
+			go dashboard.Start(room)
 			return nil
 		},
 	})
 }
-
-func printDashboard(room *component.Room) {
-	// ANSI Clear Screen
-	fmt.Print("\033[H\033[2J")
-
-	rc, pc, details, events := room.GetStats()
-
-	fmt.Println("================================================================")
-	fmt.Println("                   KCP GAME SERVER DASHBOARD                    ")
-	fmt.Println("================================================================")
-	fmt.Printf(" Active Rooms: %-4d | Online Players: %-4d | Time: %s\n", rc, pc, time.Now().Format("15:04:05"))
-	fmt.Println("----------------------------------------------------------------")
-	fmt.Println(" [ ROOMS ]")
-	if len(details) == 0 {
-		fmt.Println("  (No active rooms)")
-	}
-	for _, d := range details {
-		fmt.Printf("  %s\n", d)
-	}
-	fmt.Println("----------------------------------------------------------------")
-	fmt.Println(" [ RECENT EVENTS ]")
-	if len(events) == 0 {
-		fmt.Println("  (No events yet)")
-	}
-	for _, e := range events {
-		fmt.Printf("  > %s\n", e)
-	}
-	fmt.Println("----------------------------------------------------------------")
-}
-

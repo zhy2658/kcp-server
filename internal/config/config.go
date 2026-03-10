@@ -34,6 +34,9 @@ type Config struct {
 		HeartbeatInterval time.Duration `mapstructure:"heartbeat_interval"`
 		MaxRoomPlayers    int           `mapstructure:"max_room_players"`
 	}
+	Dashboard struct {
+		Enabled bool
+	}
 }
 
 var Conf *Config

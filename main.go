@@ -9,5 +9,6 @@ import (
 func main() {
 	fx.New(
 		app.Module,
+		fx.NopLogger,
 	).Run()
 }
