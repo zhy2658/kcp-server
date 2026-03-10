@@ -3,9 +3,9 @@ package app
 import (
 	"context"
 	"fmt"
-	"io"
-	"os"
 	"strings"
+
+	"time"
 
 	"3dtest-server/internal/component"
 	"3dtest-server/internal/config"
@@ -34,6 +34,7 @@ var Module = fx.Module("server",
 	fx.Invoke(
 		RegisterComponents,
 		StartApp,
+		StartDashboard,
 	),
 )
 
@@ -53,8 +54,8 @@ func NewLogger(cfg *config.Config) logrus.FieldLogger {
 		MaxAge:     cfg.Log.MaxAge,
 	}
 
-	mw := io.MultiWriter(os.Stdout, fileLogger)
-	l.SetOutput(mw)
+	// Disable Stdout to allow Dashboard TUI
+	l.SetOutput(fileLogger)
 
 	// Set global Pitaya logger as well
 	logger.SetLogger(logruswrapper.NewWithFieldLogger(l))
@@ -102,3 +103,47 @@ func StartApp(lc fx.Lifecycle, app pitaya.Pitaya, cfg *config.Config) {
 		},
 	})
 }
+
+func StartDashboard(lc fx.Lifecycle, room *component.Room) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			go func() {
+				ticker := time.NewTicker(200 * time.Millisecond)
+				for range ticker.C {
+					printDashboard(room)
+				}
+			}()
+			return nil
+		},
+	})
+}
+
+func printDashboard(room *component.Room) {
+	// ANSI Clear Screen
+	fmt.Print("\033[H\033[2J")
+
+	rc, pc, details, events := room.GetStats()
+
+	fmt.Println("================================================================")
+	fmt.Println("                   KCP GAME SERVER DASHBOARD                    ")
+	fmt.Println("================================================================")
+	fmt.Printf(" Active Rooms: %-4d | Online Players: %-4d | Time: %s\n", rc, pc, time.Now().Format("15:04:05"))
+	fmt.Println("----------------------------------------------------------------")
+	fmt.Println(" [ ROOMS ]")
+	if len(details) == 0 {
+		fmt.Println("  (No active rooms)")
+	}
+	for _, d := range details {
+		fmt.Printf("  %s\n", d)
+	}
+	fmt.Println("----------------------------------------------------------------")
+	fmt.Println(" [ RECENT EVENTS ]")
+	if len(events) == 0 {
+		fmt.Println("  (No events yet)")
+	}
+	for _, e := range events {
+		fmt.Printf("  > %s\n", e)
+	}
+	fmt.Println("----------------------------------------------------------------")
+}
+

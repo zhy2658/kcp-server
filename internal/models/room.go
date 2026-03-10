@@ -68,3 +68,15 @@ func (r *GameRoom) HasPlayer(uid string) bool {
 	_, exists := r.Players[uid]
 	return exists
 }
+
+// GetPlayers returns a safe copy of the player list
+func (r *GameRoom) GetPlayers() []*Player {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	players := make([]*Player, 0, len(r.Players))
+	for _, p := range r.Players {
+		players = append(players, p)
+	}
+	return players
+}
+

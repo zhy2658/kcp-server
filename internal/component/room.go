@@ -3,6 +3,7 @@ package component
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"3dtest-server/internal/config"
@@ -22,7 +23,8 @@ type Room struct {
 	app     pitaya.Pitaya
 	rooms   map[string]*models.GameRoom
 	players map[string]*models.Player // Global UID -> Player (for quick check)
-	mu      sync.RWMutex              // Protects rooms and players maps
+	events  []string
+	mu      sync.RWMutex // Protects rooms, players maps and events
 }
 
 func NewRoom(app pitaya.Pitaya) *Room {
@@ -30,7 +32,49 @@ func NewRoom(app pitaya.Pitaya) *Room {
 		app:     app,
 		rooms:   make(map[string]*models.GameRoom),
 		players: make(map[string]*models.Player),
+		events:  make([]string, 0, 10),
 	}
+}
+
+func (r *Room) LogEvent(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.events) >= 10 {
+		r.events = r.events[1:]
+	}
+	r.events = append(r.events, msg)
+}
+
+func (r *Room) GetStats() (int, int, []string, []string) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	roomCount := len(r.rooms)
+	playerCount := len(r.players)
+
+	roomDetails := make([]string, 0, roomCount)
+	for _, room := range r.rooms {
+		players := room.GetPlayers()
+		
+		pDetails := fmt.Sprintf("\n  %-10s | %-20s", "PLAYER", "POSITION (X,Y,Z)")
+		pDetails += fmt.Sprintf("\n  %s", strings.Repeat("-", 35))
+		
+		if len(players) == 0 {
+			pDetails += "\n  (no players)"
+		} else {
+			for _, p := range players {
+				pDetails += fmt.Sprintf("\n  %-10s | %.1f, %.1f, %.1f", p.Name, p.Position.X, p.Position.Y, p.Position.Z)
+			}
+		}
+		
+		roomDetails = append(roomDetails, fmt.Sprintf("[%s] %s (%d/%d):%s", room.ID, room.Name, len(players), room.MaxPlayers, pDetails))
+	}
+
+	eventsCopy := make([]string, len(r.events))
+	copy(eventsCopy, r.events)
+
+	return roomCount, playerCount, roomDetails, eventsCopy
 }
 
 func (r *Room) Init() {
@@ -162,6 +206,7 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 	})
 
 	logger.Log.Infof("Player %s joined room %s", uid, roomID)
+	r.LogEvent("Player %s (%s) joined room %s", player.Name, uid, roomID)
 
 	return &protocol.JoinResponse{
 		Code:    gameerror.CodeOK,
@@ -190,6 +235,7 @@ func (r *Room) onPlayerDisconnect(uid, roomID string) {
 			Id: uid,
 		})
 		logger.Log.Infof("Player %s left room %s", uid, roomID)
+		r.LogEvent("Player %s left room %s", uid, roomID)
 	}
 }
 
@@ -271,6 +317,7 @@ func (r *Room) Message(ctx context.Context, msg *protocol.ChatMessage) {
 		SenderId: uid,
 		Content:  msg.Content,
 	})
+	r.LogEvent("Msg from %s: %s", uid, msg.Content)
 }
 
 // Leave Handler
