@@ -69,11 +69,12 @@ func (r *Room) GetDashboardData() dashboard.Data {
 		players := room.GetPlayers()
 		pInfos := make([]dashboard.PlayerInfo, 0, len(players))
 		for _, p := range players {
+			pos := p.GetPosition()
 			pInfos = append(pInfos, dashboard.PlayerInfo{
 				Name: p.Name,
-				X:    p.Position.X,
-				Y:    p.Position.Y,
-				Z:    p.Position.Z,
+				X:    pos.X,
+				Y:    pos.Y,
+				Z:    pos.Z,
 			})
 		}
 
@@ -159,6 +160,48 @@ func (r *Room) List(ctx context.Context, req *protocol.ListRoomsRequest) (*proto
 	return res, nil
 }
 
+// ensurePlayerNotInRoom handles cleaning up a player who is already tracked.
+// Must be called WITHOUT r.mu held. Returns an error if the player cannot be cleaned up.
+func (r *Room) ensurePlayerNotInRoom(uid string, targetRoomID string, s interface{ Get(string) interface{} }) error {
+	r.mu.RLock()
+	_, exists := r.players[uid]
+	r.mu.RUnlock()
+	if !exists {
+		return nil
+	}
+
+	oldRoomVal := s.Get("roomID")
+	oldRoomID, ok := oldRoomVal.(string)
+	if !ok || oldRoomID == "" {
+		r.mu.Lock()
+		delete(r.players, uid)
+		r.mu.Unlock()
+		return nil
+	}
+
+	if oldRoomID == targetRoomID {
+		return gameerror.New(gameerror.CodeAlreadyInRoom, "player already in this room")
+	}
+
+	logger.Log.Infof("Player %s switching from room %s to %s", uid, oldRoomID, targetRoomID)
+	r.onPlayerDisconnect(uid, oldRoomID)
+	return nil
+}
+
+// findRoom looks up a room by ID, falling back to name match. Must be called with r.mu held for reading.
+func (r *Room) findRoom(roomID string) (*models.GameRoom, string, bool) {
+	room, exists := r.rooms[roomID]
+	if exists {
+		return room, roomID, true
+	}
+	for _, v := range r.rooms {
+		if v.Name == roomID {
+			return v, v.ID, true
+		}
+	}
+	return nil, roomID, false
+}
+
 // Join Room Handler
 func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.JoinResponse, error) {
 	s := r.app.GetSessionFromCtx(ctx)
@@ -170,78 +213,42 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 		}
 	}
 
-	r.mu.Lock()
-	if _, exists := r.players[uid]; exists {
-		// Player is already in a room. Check if we can auto-leave.
-		r.mu.Unlock() // Unlock to avoid deadlock in onPlayerDisconnect
-
-		// Get current room ID from session
-		oldRoomVal := s.Get("roomID")
-		if oldRoomID, ok := oldRoomVal.(string); ok && oldRoomID != "" {
-			if oldRoomID == req.RoomId {
-				return nil, gameerror.New(gameerror.CodeAlreadyInRoom, "player already in this room")
-			}
-			// Auto-leave the old room
-			logger.Log.Infof("Player %s switching from room %s to %s", uid, oldRoomID, req.RoomId)
-			r.onPlayerDisconnect(uid, oldRoomID)
-		} else {
-			// Inconsistent state: r.players has uid but session has no roomID.
-			// Force clean up r.players
-			r.mu.Lock()
-			delete(r.players, uid)
-			r.mu.Unlock()
-		}
-
-		// Re-acquire lock to check again (though we just cleared it, another request could have come in)
-		r.mu.Lock()
-		if _, exists := r.players[uid]; exists {
-			r.mu.Unlock()
-			return nil, gameerror.New(gameerror.CodeAlreadyInRoom, "player already in a room (race condition)")
-		}
+	// Phase 1: Clean up if the player is already in a room (no lock held)
+	if err := r.ensurePlayerNotInRoom(uid, req.RoomId, s); err != nil {
+		return nil, err
 	}
 
-	// Important: Lock is held here if we reached this point
-
+	// Phase 2: Single lock scope - resolve room and register player
 	roomID := req.RoomId
 	if roomID == "" {
 		roomID = "lobby"
 	}
 
-	room, exists := r.rooms[roomID]
-	if !exists {
-		// Try to find room by name if ID lookup fails
-		for _, v := range r.rooms {
-			if v.Name == roomID {
-				room = v
-				exists = true
-				roomID = v.ID // Update roomID to correct UUID
-				break
-			}
-		}
+	r.mu.Lock()
+	if _, stillExists := r.players[uid]; stillExists {
+		r.mu.Unlock()
+		return nil, gameerror.New(gameerror.CodeAlreadyInRoom, "player already in a room")
 	}
-
-	if !exists {
+	room, roomID, found := r.findRoom(roomID)
+	if !found {
 		r.mu.Unlock()
 		return nil, gameerror.New(gameerror.CodeRoomNotFound, fmt.Sprintf("room not found: %s", roomID))
 	}
-
 	player := models.NewPlayer(uid, req.Name)
 	r.players[uid] = player
 	r.mu.Unlock()
 
-	// Add to Room Model (Handles Room Lock)
+	// Phase 3: Add to room model (has its own lock)
 	if err := room.AddPlayer(player); err != nil {
-		// Rollback Global
 		r.mu.Lock()
 		delete(r.players, uid)
 		r.mu.Unlock()
 		return nil, gameerror.New(gameerror.CodeRoomFull, err.Error())
 	}
 
-	// IO: Add to Pitaya Group
+	// Phase 4: Add to Pitaya group
 	if err := r.app.GroupAddMember(ctx, roomID, uid); err != nil {
 		logger.Log.Errorf("Failed to add member to group: %v", err)
-		// Rollback
 		room.RemovePlayer(uid)
 		r.mu.Lock()
 		delete(r.players, uid)
@@ -251,10 +258,7 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 
 	s.Set("roomID", roomID)
 
-	// Broadcast Join to AOI Neighbors only
-	// NOTE: AOI Logic handles the broadcast, but we need to make sure the player is in AOI first.
-	// AddPlayer called r.AOI.Enter(), so they are in.
-
+	// Phase 5: Broadcast
 	neighbors, _ := room.AOI.GetNeighbors(uid)
 	if len(neighbors) > 0 {
 		r.app.SendPushToUsers("OnPlayerJoin", &protocol.PlayerJoinPush{
@@ -263,22 +267,15 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 		}, neighbors, config.Conf.Server.Type)
 	}
 
-	// NEW: Also send 'OnPlayerEnterAOI' to the joining player for all existing neighbors!
-	// Otherwise the new player sees nobody until they move.
-	// Since AOI.GetNeighbors returns existing entities, we can reuse it.
 	for _, neighborID := range neighbors {
 		neighbor := room.GetPlayer(neighborID)
 		if neighbor != nil {
-			r.app.SendPushToUsers("OnPlayerEnterAOI", &protocol.PlayerState{
-				Id:       neighbor.ID,
-				Position: neighbor.Position,
-				Rotation: neighbor.Rotation,
-			}, []string{uid}, config.Conf.Server.Type)
+			r.app.SendPushToUsers("OnPlayerEnterAOI", neighbor.ToProto(),
+				[]string{uid}, config.Conf.Server.Type)
 		}
 	}
 
 	s.OnClose(func() {
-		// Read current roomID from session instead of using closure-captured value
 		val := s.Get("roomID")
 		if currentRoomID, ok := val.(string); ok && currentRoomID != "" {
 			r.onPlayerDisconnect(uid, currentRoomID)
@@ -371,12 +368,11 @@ func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) (*protocol.M
 
 	// Update Player State via Model (Validation included)
 	if err := player.UpdatePosition(req.Position, req.Rotation); err != nil {
-		// Validation failed! Return error response
 		logger.Log.Warnf("Invalid move from %s: %v", uid, err)
 		return &protocol.MoveResponse{
 			Code:     400,
 			Message:  fmt.Sprintf("Invalid move: %v", err),
-			Position: player.Position, // Return last valid position
+			Position: player.GetPosition(),
 		}, nil
 	}
 
@@ -393,23 +389,19 @@ func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) (*protocol.M
 	}
 
 	// 1. Handle AOI Enter/Leave events
-	// Notify 'enterIDs' that 'uid' has entered their view
 	if len(enterIDs) > 0 {
+		playerPos, playerRot := player.GetState()
 		r.app.SendPushToUsers("OnPlayerEnterAOI", &protocol.PlayerState{
 			Id:       player.ID,
-			Position: player.Position,
-			Rotation: player.Rotation,
+			Position: playerPos,
+			Rotation: playerRot,
 		}, enterIDs, config.Conf.Server.Type)
 
-		// Notify 'uid' about 'enterIDs' (they entered my view)
 		for _, eid := range enterIDs {
 			otherPlayer := room.GetPlayer(eid)
 			if otherPlayer != nil {
-				r.app.SendPushToUsers("OnPlayerEnterAOI", &protocol.PlayerState{
-					Id:       otherPlayer.ID,
-					Position: otherPlayer.Position,
-					Rotation: otherPlayer.Rotation,
-				}, []string{uid}, config.Conf.Server.Type)
+				r.app.SendPushToUsers("OnPlayerEnterAOI", otherPlayer.ToProto(),
+					[]string{uid}, config.Conf.Server.Type)
 			}
 		}
 	}

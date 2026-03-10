@@ -42,7 +42,7 @@ func (r *GameRoom) AddPlayer(p *Player) error {
 	}
 
 	// Add to AOI first
-	if err := r.AOI.Enter(p.ID, p.Position); err != nil {
+	if err := r.AOI.Enter(p.ID, p.GetPosition()); err != nil {
 		return err
 	}
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync/atomic"
 
 	"game-server/internal/config"
 
@@ -17,7 +18,7 @@ type KCPAcceptor struct {
 	addr          string
 	connChan      chan acceptor.PlayerConn
 	listener      *kcp.Listener
-	running       bool
+	running       atomic.Bool
 	proxyProtocol bool
 	cfg           *config.Config
 }
@@ -60,11 +61,9 @@ var _ acceptor.PlayerConn = &kcpPlayerConn{}
 func NewKCPAcceptor(cfg *config.Config) *KCPAcceptor {
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	return &KCPAcceptor{
-		addr:          addr,
-		connChan:      make(chan acceptor.PlayerConn),
-		running:       false,
-		proxyProtocol: false,
-		cfg:           cfg,
+		addr:     addr,
+		connChan: make(chan acceptor.PlayerConn),
+		cfg:      cfg,
 	}
 }
 
@@ -80,14 +79,14 @@ func (a *KCPAcceptor) GetConnChan() chan acceptor.PlayerConn {
 }
 
 func (a *KCPAcceptor) Stop() {
-	a.running = false
+	a.running.Store(false)
 	if a.listener != nil {
 		a.listener.Close()
 	}
 }
 
 func (a *KCPAcceptor) IsRunning() bool {
-	return a.running
+	return a.running.Load()
 }
 
 func (a *KCPAcceptor) GetConfiguredAddress() string {
@@ -109,13 +108,13 @@ func (a *KCPAcceptor) ListenAndServe() {
 	}
 
 	a.listener = l
-	a.running = true
+	a.running.Store(true)
 
 	defer a.Stop()
 
 	logger.Log.Infof("KCP Acceptor listening on %s", a.addr)
 
-	for a.running {
+	for a.running.Load() {
 		conn, err := a.listener.Accept()
 		if err != nil {
 			logger.Log.Errorf("Failed to accept KCP connection: %s", err.Error())
