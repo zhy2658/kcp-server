@@ -267,12 +267,37 @@ func (r *Room) Join(ctx context.Context, req *protocol.JoinRequest) (*protocol.J
 		}, neighbors, config.Conf.Server.Type)
 	}
 
+	// Also send current player position to neighbors so they can spawn it immediately
+	// OnPlayerJoin only has ID/Name, but client might need Position to spawn.
+	// Actually, client usually waits for OnPlayerMove or OnPlayerEnterAOI.
+	// But since we are already neighbors, we should just send EnterAOI or initial Move?
+	// Existing logic sends OnPlayerJoin to neighbors.
+	// Let's ALSO send OnPlayerEnterAOI to neighbors to ensure they spawn the player with correct position.
+	if len(neighbors) > 0 {
+		playerPos, playerRot := player.GetState()
+		r.app.SendPushToUsers("OnPlayerEnterAOI", &protocol.PlayerState{
+			Id:       player.ID,
+			Position: playerPos,
+			Rotation: playerRot,
+		}, neighbors, config.Conf.Server.Type)
+	}
+
 	for _, neighborID := range neighbors {
 		neighbor := room.GetPlayer(neighborID)
 		if neighbor != nil {
 			r.app.SendPushToUsers("OnPlayerEnterAOI", neighbor.ToProto(),
 				[]string{uid}, config.Conf.Server.Type)
 		}
+	}
+
+	// Send self info so the joining player knows their own ID
+	{
+		selfPos, selfRot := player.GetState()
+		r.app.SendPushToUsers("OnSelfJoin", &protocol.PlayerState{
+			Id:       player.ID,
+			Position: selfPos,
+			Rotation: selfRot,
+		}, []string{uid}, config.Conf.Server.Type)
 	}
 
 	s.OnClose(func() {
@@ -369,6 +394,7 @@ func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) (*protocol.M
 	// Update Player State via Model (Validation included)
 	if err := player.UpdatePosition(req.Position, req.Rotation); err != nil {
 		logger.Log.Warnf("Invalid move from %s: %v", uid, err)
+		r.LogEvent("Move rejected for %s: %v", player.Name, err)
 		return &protocol.MoveResponse{
 			Code:     400,
 			Message:  fmt.Sprintf("Invalid move: %v", err),

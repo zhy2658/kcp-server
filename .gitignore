@@ -1,3 +1,29 @@
-logs/*
+# Binaries
 *.exe
+bin/
+dist/
+
+# Go vendor (if not committed)
+# vendor/
+
+# Logs
+logs/*
 *.log
+!logs/.gitkeep
+
+# Environment / secrets
+.env
+.env.*
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# OS generated
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Go build cache
+__debug_bin*

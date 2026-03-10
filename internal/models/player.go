@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	MaxSpeedPerTick = 10.0 // Units per sync (adjust based on game logic)
+	MaxSpeedPerTick = 1000.0 // Units per sync (increased to allow initial spawn sync)
 )
 
 type Player struct {
@@ -22,7 +22,7 @@ type Player struct {
 
 func NewPlayer(id, name string) *Player {
 	return &Player{
-		ID:  id,
+		ID:   id,
 		Name: name,
 		pos:  &protocol.Vector3{X: 0, Y: 0, Z: 0},
 		rot:  &protocol.Quaternion{X: 0, Y: 0, Z: 0, W: 1},
