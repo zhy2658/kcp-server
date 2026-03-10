@@ -5,7 +5,7 @@ import (
 	"io"
 	"net"
 
-	"3dtest-server/internal/config"
+	"game-server/internal/config"
 
 	"github.com/topfreegames/pitaya/v2/acceptor"
 	"github.com/topfreegames/pitaya/v2/conn/codec"

@@ -1,6 +1,6 @@
 package aoi
 
-import "3dtest-server/protocol"
+import "game-server/protocol"
 
 // Manager defines the interface for AOI management
 type Manager interface {

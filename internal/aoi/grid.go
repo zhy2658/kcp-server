@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"3dtest-server/protocol"
+	"game-server/protocol"
 )
 
 // GridManager implements the AOI Manager interface using a grid-based approach

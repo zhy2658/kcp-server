@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package protocol;
 
-option go_package = "3dtest-server/protocol";
+option go_package = "game-server/protocol";
 
 // Room Management
 message CreateRoomRequest {

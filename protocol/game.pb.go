@@ -984,7 +984,7 @@ const file_protocol_game_proto_rawDesc = "" +
 	"\brotation\x18\x03 \x01(\v2\x14.protocol.QuaternionR\brotation\"t\n" +
 	"\x11ForcePositionPush\x12-\n" +
 	"\bposition\x18\x01 \x01(\v2\x11.protocol.Vector3R\bposition\x120\n" +
-	"\brotation\x18\x02 \x01(\v2\x14.protocol.QuaternionR\brotationB\x18Z\x163dtest-server/protocolb\x06proto3"
+	"\brotation\x18\x02 \x01(\v2\x14.protocol.QuaternionR\brotationB\x16Z\x14game-server/protocolb\x06proto3"
 
 var (
 	file_protocol_game_proto_rawDescOnce sync.Once

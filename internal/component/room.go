@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"sync"
 
-	"3dtest-server/internal/config"
-	"3dtest-server/internal/dashboard"
-	"3dtest-server/internal/gameerror"
-	"3dtest-server/internal/models"
-	"3dtest-server/protocol"
+	"game-server/internal/config"
+	"game-server/internal/dashboard"
+	"game-server/internal/gameerror"
+	"game-server/internal/models"
+	"game-server/protocol"
 
 	"github.com/google/uuid"
 	"github.com/topfreegames/pitaya/v2"

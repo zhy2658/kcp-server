@@ -1,4 +1,4 @@
-module 3dtest-server
+module game-server
 
 go 1.24.0
 

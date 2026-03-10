@@ -7,11 +7,11 @@ import (
 	"os"
 	"strings"
 
-	"3dtest-server/internal/component"
-	"3dtest-server/internal/config"
-	"3dtest-server/internal/dashboard"
-	"3dtest-server/internal/network"
-	"3dtest-server/internal/serializer"
+	"game-server/internal/component"
+	"game-server/internal/config"
+	"game-server/internal/dashboard"
+	"game-server/internal/network"
+	"game-server/internal/serializer"
 
 	"github.com/sirupsen/logrus"
 	"github.com/topfreegames/pitaya/v2"

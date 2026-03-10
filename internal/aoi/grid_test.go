@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"3dtest-server/protocol"
+	"game-server/protocol"
 )
 
 func TestGridManager_EnterAndLeave(t *testing.T) {

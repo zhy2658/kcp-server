@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"3dtest-server/protocol"
+	"game-server/protocol"
 )
 
 const (

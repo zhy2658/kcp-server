@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"time"
 
-	"3dtest-server/protocol"
+	"game-server/protocol"
 
 	"github.com/topfreegames/pitaya/v2/conn/codec"
 	"github.com/topfreegames/pitaya/v2/conn/message"

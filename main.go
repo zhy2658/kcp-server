@@ -1,7 +1,7 @@
 package main
 
 import (
-	"3dtest-server/internal/app"
+	"game-server/internal/app"
 
 	"go.uber.org/fx"
 )

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"3dtest-server/internal/aoi"
+	"game-server/internal/aoi"
 )
 
 type GameRoom struct {
