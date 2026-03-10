@@ -333,21 +333,24 @@ func (r *Room) onPlayerDisconnect(uid, roomID string) {
 	}
 }
 
-// Move Handler (Notify)
-func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) {
+// Move Handler (Request)
+func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) (*protocol.MoveResponse, error) {
 	s := r.app.GetSessionFromCtx(ctx)
 	uid := s.UID()
 	if uid == "" {
-		return
+		logger.Log.Warnf("Move failed: UID is empty")
+		return nil, gameerror.New(gameerror.CodeUnauthorized, "not authenticated")
 	}
 
 	val := s.Get("roomID")
 	if val == nil {
-		return
+		logger.Log.Warnf("Move failed: player %s not in any room", uid)
+		return nil, gameerror.New(gameerror.CodeNotInRoom, "not in any room")
 	}
 	roomID, ok := val.(string)
 	if !ok || roomID == "" {
-		return
+		logger.Log.Warnf("Move failed: invalid roomID for player %s", uid)
+		return nil, gameerror.New(gameerror.CodeNotInRoom, "not in any room")
 	}
 
 	r.mu.RLock()
@@ -355,29 +358,26 @@ func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) {
 	r.mu.RUnlock()
 
 	if !exists {
-		return
+		logger.Log.Warnf("Move failed: room %s not found for player %s", roomID, uid)
+		return nil, gameerror.New(gameerror.CodeRoomNotFound, "room not found")
 	}
 
 	// Get Player from Room Model
 	player := room.GetPlayer(uid)
 	if player == nil {
-		return
+		logger.Log.Warnf("Move failed: player %s not found in room %s", uid, roomID)
+		return nil, gameerror.New(gameerror.CodePlayerNotFound, "player not found in room")
 	}
 
 	// Update Player State via Model (Validation included)
 	if err := player.UpdatePosition(req.Position, req.Rotation); err != nil {
-		// Validation failed! Send correction push to this user.
+		// Validation failed! Return error response
 		logger.Log.Warnf("Invalid move from %s: %v", uid, err)
-
-		// Push correction message to the specific user
-		// Use SendPushToUsers instead of Push (which is a Session method, not App method)
-		if _, err := r.app.SendPushToUsers("onForcePosition", &protocol.ForcePositionPush{
-			Position: player.Position, // Send last valid position
-			Rotation: player.Rotation,
-		}, []string{uid}, config.Conf.Server.Type); err != nil {
-			logger.Log.Errorf("Failed to push correction: %v", err)
-		}
-		return
+		return &protocol.MoveResponse{
+			Code:     400,
+			Message:  fmt.Sprintf("Invalid move: %v", err),
+			Position: player.Position, // Return last valid position
+		}, nil
 	}
 
 	// Calculate AOI: Get entities that need to be notified
@@ -389,7 +389,7 @@ func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) {
 	leaveIDs, enterIDs, err := room.AOI.Move(uid, req.Position)
 	if err != nil {
 		logger.Log.Errorf("AOI Move failed: %v", err)
-		return
+		return nil, gameerror.New(gameerror.CodeInternalError, fmt.Sprintf("AOI move failed: %v", err))
 	}
 
 	// 1. Handle AOI Enter/Leave events
@@ -440,6 +440,13 @@ func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) {
 	}
 
 	logger.Log.Debugf("Player %s moved to: %v. Neighbors: %d", uid, req.Position, len(neighbors))
+
+	// Return success response
+	return &protocol.MoveResponse{
+		Code:     200,
+		Message:  "Move successful",
+		Position: req.Position,
+	}, nil
 }
 
 // Message Handler (Notify) - Chat

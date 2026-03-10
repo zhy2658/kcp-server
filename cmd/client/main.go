@@ -168,6 +168,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetContent(strings.Join(m.messages, "\n"))
 		m.viewport.GotoBottom()
 		return m, nil
+
+	case moveSuccessMsg:
+		// Update local position after server confirms
+		m.playerPos = msg.pos
+		return m, nil
 	}
 
 	return m, tea.Batch(tiCmd, vpCmd)
@@ -271,6 +276,9 @@ type playerLeaveMsg struct {
 type roomLeftMsg struct {
 	message string
 }
+type moveSuccessMsg struct {
+	pos *protocol.Vector3
+}
 
 // --- Commands ---
 
@@ -353,16 +361,20 @@ func handleInput(input string, m *model) tea.Cmd {
 		fmt.Sscanf(parts[1], "%f", &x)
 		fmt.Sscanf(parts[2], "%f", &z)
 
-		m.playerPos.X += x
-		m.playerPos.Z += z
+		// Calculate target position
+		targetPos := &protocol.Vector3{
+			X: m.playerPos.X + x,
+			Y: 0,
+			Z: m.playerPos.Z + z,
+		}
 
 		req := &protocol.MoveRequest{
-			Position: m.playerPos,
+			Position: targetPos,
 			Rotation: &protocol.Quaternion{W: 1},
 		}
 		data, _ := proto.Marshal(req)
-		sendNotify(conn, "room.move", data)
-		return func() tea.Msg { return serverMsg(fmt.Sprintf("Moved to %.1f, %.1f", m.playerPos.X, m.playerPos.Z)) }
+		sendRequest(conn, "room.move", data) // ✅ Changed to Request
+		return func() tea.Msg { return serverMsg(fmt.Sprintf("Moving to %.1f, %.1f...", targetPos.X, targetPos.Z)) }
 
 	case "/list":
 		req := &protocol.ListRoomsRequest{}
@@ -441,6 +453,16 @@ func handleServerMessage(msg *message.Message) tea.Msg {
 						return roomLeftMsg{message: fmt.Sprintf("Left Room: %s", leaveResp.Message)}
 					} else {
 						return serverMsg(fmt.Sprintf("Leave Failed: Code=%d Msg=%s", leaveResp.Code, leaveResp.Message))
+					}
+				}
+			case "room.move":
+				moveResp := new(protocol.MoveResponse)
+				if err := proto.Unmarshal(msg.Data, moveResp); err == nil && moveResp.Code != 0 {
+					if moveResp.Code == 200 {
+						// Update position after server confirms
+						return moveSuccessMsg{pos: moveResp.Position}
+					} else {
+						return serverMsg(fmt.Sprintf("Move Failed: Code=%d Msg=%s", moveResp.Code, moveResp.Message))
 					}
 				}
 			}

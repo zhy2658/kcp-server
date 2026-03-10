@@ -3,12 +3,15 @@ package gameerror
 import "fmt"
 
 const (
-	CodeOK             = 200
-	CodeRoomNotFound   = 404
-	CodeRoomFull       = 403
-	CodeInternalError  = 500
-	CodeInvalidRequest = 400
-	CodeAlreadyInRoom  = 409
+	CodeOK              = 200
+	CodeRoomNotFound    = 404
+	CodeRoomFull        = 403
+	CodeInternalError   = 500
+	CodeInvalidRequest  = 400
+	CodeAlreadyInRoom   = 409
+	CodeUnauthorized    = 401
+	CodeNotInRoom       = 412
+	CodePlayerNotFound  = 404
 )
 
 type Error struct {

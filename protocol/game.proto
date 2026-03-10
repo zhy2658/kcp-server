@@ -71,6 +71,12 @@ message MoveRequest {
   Quaternion rotation = 2;
 }
 
+message MoveResponse {
+  int32 code = 1;
+  string message = 2;
+  Vector3 position = 3;  // Server-confirmed position
+}
+
 // Chat (Existing)
 message ChatMessage {
   string sender_id = 1; // Can be empty when sending, filled by server
