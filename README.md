@@ -82,7 +82,7 @@
 
 | 路由 (Route) | Proto | 描述 |
 | :--- | :--- | :--- |
-| `room.move` | `MoveRequest` | 发送当前位置/旋转信息给服务器 (包含速度校验) |
+| `room.move` | `MoveRequest` | 发送位置/旋转/归一化速度/着地状态 (含速度校验) |
 | `room.message`| `ChatMessage` | 发送聊天消息到房间 |
 
 ### 推送 / 广播 (服务器 -> 客户端)
@@ -91,7 +91,7 @@
 | :--- | :--- | :--- |
 | `OnPlayerJoin`| `PlayerJoinPush` | 通知房间内其他人有新玩家加入 |
 | `OnPlayerLeave`| `PlayerLeavePush` | 通知有玩家离开 |
-| `OnPlayerMove`| `PlayerMovePush` | 广播其他玩家的移动更新（受 AOI 限制，仅发给附近玩家） |
+| `OnPlayerMove`| `PlayerMovePush` | 广播移动更新 (位置/旋转/速度/着地, AOI 过滤) |
 | `OnPlayerEnterAOI` | `PlayerState` | **[新增]** 当有实体进入你的视野范围时触发（用于生成模型） |
 | `OnPlayerLeaveAOI` | `PlayerLeavePush` | **[新增]** 当有实体离开你的视野范围时触发（用于销毁模型） |
 | `OnMessage` | `ChatMessage` | 广播聊天消息 |
@@ -175,6 +175,24 @@ go build -o server.exe
 go run cmd/client/main.go
 ```
 
+### Bot2 拟人机器人
+
+`cmd/bot2/bot2.go` 模拟真人玩家行为 (状态机: Idle→Walking/Running→Pausing 循环)，发送位置、旋转、速度数据，用于测试多人动画同步。
+
+```powershell
+# 默认参数
+go run cmd/bot2/bot2.go
+
+# 自定义
+go run cmd/bot2/bot2.go -name "TestBot" -room "lobby" -addr "127.0.0.1:3250"
+```
+
+| 参数 | 值 |
+|------|----|
+| 漫游半径 | 15m |
+| 行走/奔跑速度 | 2.5 / 5.5 u/s |
+| 转向速度 | 180°/s |
+| 网络发送 | 移动 10Hz, 静止 2Hz |
 
 ## Proto 代码生成
 

@@ -451,9 +451,11 @@ func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) (*protocol.M
 	neighbors, _ := room.AOI.GetNeighbors(uid)
 	if len(neighbors) > 0 {
 		r.app.SendPushToUsers("OnPlayerMove", &protocol.PlayerMovePush{
-			Id:       uid,
-			Position: req.Position,
-			Rotation: req.Rotation,
+			Id:         uid,
+			Position:   req.Position,
+			Rotation:   req.Rotation,
+			Speed:      req.Speed,
+			IsGrounded: req.IsGrounded,
 		}, neighbors, config.Conf.Server.Type)
 	}
 

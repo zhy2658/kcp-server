@@ -664,11 +664,14 @@ func (x *PlayerState) GetRotation() *Quaternion {
 }
 
 type MoveRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Position      *Vector3               `protobuf:"bytes,1,opt,name=position,proto3" json:"position,omitempty"`
-	Rotation      *Quaternion            `protobuf:"bytes,2,opt,name=rotation,proto3" json:"rotation,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Position        *Vector3               `protobuf:"bytes,1,opt,name=position,proto3" json:"position,omitempty"`
+	Rotation        *Quaternion            `protobuf:"bytes,2,opt,name=rotation,proto3" json:"rotation,omitempty"`
+	Speed           float32                `protobuf:"fixed32,3,opt,name=speed,proto3" json:"speed,omitempty"`
+	IsGrounded      bool                   `protobuf:"varint,4,opt,name=is_grounded,json=isGrounded,proto3" json:"is_grounded,omitempty"`
+	ClientTimestamp int64                  `protobuf:"varint,5,opt,name=client_timestamp,json=clientTimestamp,proto3" json:"client_timestamp,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *MoveRequest) Reset() {
@@ -713,6 +716,27 @@ func (x *MoveRequest) GetRotation() *Quaternion {
 		return x.Rotation
 	}
 	return nil
+}
+
+func (x *MoveRequest) GetSpeed() float32 {
+	if x != nil {
+		return x.Speed
+	}
+	return 0
+}
+
+func (x *MoveRequest) GetIsGrounded() bool {
+	if x != nil {
+		return x.IsGrounded
+	}
+	return false
+}
+
+func (x *MoveRequest) GetClientTimestamp() int64 {
+	if x != nil {
+		return x.ClientTimestamp
+	}
+	return 0
 }
 
 type MoveResponse struct {
@@ -930,6 +954,8 @@ type PlayerMovePush struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Position      *Vector3               `protobuf:"bytes,2,opt,name=position,proto3" json:"position,omitempty"`
 	Rotation      *Quaternion            `protobuf:"bytes,3,opt,name=rotation,proto3" json:"rotation,omitempty"`
+	Speed         float32                `protobuf:"fixed32,4,opt,name=speed,proto3" json:"speed,omitempty"`
+	IsGrounded    bool                   `protobuf:"varint,5,opt,name=is_grounded,json=isGrounded,proto3" json:"is_grounded,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -983,6 +1009,20 @@ func (x *PlayerMovePush) GetRotation() *Quaternion {
 		return x.Rotation
 	}
 	return nil
+}
+
+func (x *PlayerMovePush) GetSpeed() float32 {
+	if x != nil {
+		return x.Speed
+	}
+	return 0
+}
+
+func (x *PlayerMovePush) GetIsGrounded() bool {
+	if x != nil {
+		return x.IsGrounded
+	}
+	return false
 }
 
 type ForcePositionPush struct {
@@ -1081,10 +1121,14 @@ const file_protocol_game_proto_rawDesc = "" +
 	"\vPlayerState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12-\n" +
 	"\bposition\x18\x02 \x01(\v2\x11.protocol.Vector3R\bposition\x120\n" +
-	"\brotation\x18\x03 \x01(\v2\x14.protocol.QuaternionR\brotation\"n\n" +
+	"\brotation\x18\x03 \x01(\v2\x14.protocol.QuaternionR\brotation\"\xd0\x01\n" +
 	"\vMoveRequest\x12-\n" +
 	"\bposition\x18\x01 \x01(\v2\x11.protocol.Vector3R\bposition\x120\n" +
-	"\brotation\x18\x02 \x01(\v2\x14.protocol.QuaternionR\brotation\"k\n" +
+	"\brotation\x18\x02 \x01(\v2\x14.protocol.QuaternionR\brotation\x12\x14\n" +
+	"\x05speed\x18\x03 \x01(\x02R\x05speed\x12\x1f\n" +
+	"\vis_grounded\x18\x04 \x01(\bR\n" +
+	"isGrounded\x12)\n" +
+	"\x10client_timestamp\x18\x05 \x01(\x03R\x0fclientTimestamp\"k\n" +
 	"\fMoveResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12-\n" +
@@ -1096,11 +1140,14 @@ const file_protocol_game_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"!\n" +
 	"\x0fPlayerLeavePush\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x81\x01\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\xb8\x01\n" +
 	"\x0ePlayerMovePush\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12-\n" +
 	"\bposition\x18\x02 \x01(\v2\x11.protocol.Vector3R\bposition\x120\n" +
-	"\brotation\x18\x03 \x01(\v2\x14.protocol.QuaternionR\brotation\"t\n" +
+	"\brotation\x18\x03 \x01(\v2\x14.protocol.QuaternionR\brotation\x12\x14\n" +
+	"\x05speed\x18\x04 \x01(\x02R\x05speed\x12\x1f\n" +
+	"\vis_grounded\x18\x05 \x01(\bR\n" +
+	"isGrounded\"t\n" +
 	"\x11ForcePositionPush\x12-\n" +
 	"\bposition\x18\x01 \x01(\v2\x11.protocol.Vector3R\bposition\x120\n" +
 	"\brotation\x18\x02 \x01(\v2\x14.protocol.QuaternionR\brotationB\x16Z\x14game-server/protocolb\x06proto3"

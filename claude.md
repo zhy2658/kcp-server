@@ -49,7 +49,8 @@
 ```
 kcp-server/
 ├── cmd/                    # 入口点
-│   ├── bot/                # 用于负载测试的机器人客户端
+│   ├── bot/                # 基础机器人 (原地发包测试)
+│   ├── bot2/               # 拟人机器人 (状态机 AI, 漫游/转向/动画)
 │   ├── client/             # 简单的测试客户端
 │   ├── diagnostic_move/    # 诊断工具
 │   └── test_move/          # 移动测试工具
@@ -82,7 +83,7 @@ kcp-server/
 | `room.list` | `ListRoomsRequest` | `ListRoomsResponse` | 列出可用房间 |
 | `room.join` | `JoinRequest` | `JoinResponse` | 加入指定房间 |
 | `room.leave` | `LeaveRequest` | `LeaveResponse` | 离开当前房间 |
-| `room.move` | `MoveRequest` | `MoveResponse` | 同步玩家位置/旋转 |
+| `room.move` | `MoveRequest` | `MoveResponse` | 同步位置/旋转/速度/着地状态 |
 
 ### 通知 (客户端 -> 服务器)
 
@@ -142,6 +143,43 @@ go build -o server.exe
 
 ## 关键实现细节
 
-- **AOI 系统**: 在 `internal/aoi` 中实现，可能使用基于网格的方法，通过仅向附近的玩家发送更新来限制网络流量。
+- **AOI 系统**: 在 `internal/aoi` 中实现，基于网格方法，仅向附近玩家发送更新以限制带宽。
 - **并发**: `Room` 组件使用 `sync.RWMutex` 保护共享状态 (`rooms`, `players` 映射)。
-- **仪表盘**: 提供了一个 TUI 仪表盘 (`internal/dashboard`) 用于实时服务器监控，可通过配置启用。
+- **仪表盘**: TUI 仪表盘 (`internal/dashboard`) 用于实时服务器监控，可通过配置启用。
+- **移动同步**: `MoveRequest` 包含位置、旋转、归一化速度 (0~1)、着地状态，`PlayerMovePush` 将这些字段原样转发给 AOI 邻居。
+
+## Bot2 拟人机器人
+
+位于 `cmd/bot2/bot2.go`，使用状态机模拟真人移动行为。
+
+### 状态机
+
+```
+Idle (1.5~5s) → Walking/Running (随机)
+Walking (3~8s) → Pausing → Walking/Running/Idle
+Running (1.5~4s) → Pausing → Walking/Running/Idle
+```
+
+### 参数
+
+| 参数 | 值 |
+|------|----|
+| 出生点 | (76.5, 10.2, -54.0) |
+| 漫游半径 | 15m |
+| 行走速度 | 2.5 u/s (归一化 0.4) |
+| 奔跑速度 | 5.5 u/s (归一化 1.0) |
+| 转向速度 | 180°/s |
+| 奔跑概率 | 25% |
+| 发送频率 | 移动 10Hz, 静止 2Hz |
+
+### 运行
+
+```bash
+go run cmd/bot2/bot2.go -name "Bot2" -room "lobby" -addr "127.0.0.1:3250"
+```
+
+### 实现要点
+
+- 平滑转向 (`smoothDampAngle`)、速度过渡 (`lerp32`) 确保动画流畅
+- Yaw→Quaternion 转换与 Unity `Quaternion.Euler(0, yaw, 0)` 一致
+- 房间不存在时自动创建再重试加入
