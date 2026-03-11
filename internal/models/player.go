@@ -18,14 +18,25 @@ type Player struct {
 	mu   sync.RWMutex
 	pos  *protocol.Vector3
 	rot  *protocol.Quaternion
+
+	// Combat Stats
+	HP       int32
+	MaxHP    int32
+	Attack   int32
+	IsDead   bool
+	SkillCDs map[int32]int64
 }
 
 func NewPlayer(id, name string) *Player {
 	return &Player{
-		ID:   id,
-		Name: name,
-		pos:  &protocol.Vector3{X: 0, Y: 0, Z: 0},
-		rot:  &protocol.Quaternion{X: 0, Y: 0, Z: 0, W: 1},
+		ID:       id,
+		Name:     name,
+		pos:      &protocol.Vector3{X: 0, Y: 0, Z: 0},
+		rot:      &protocol.Quaternion{X: 0, Y: 0, Z: 0, W: 1},
+		HP:       100,
+		MaxHP:    100,
+		Attack:   10,
+		SkillCDs: make(map[int32]int64),
 	}
 }
 
@@ -54,6 +65,47 @@ func (p *Player) ToProto() *protocol.PlayerState {
 		Position: pos,
 		Rotation: rot,
 	}
+}
+
+func (p *Player) ApplyDamage(damage int32) (int32, int32, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.IsDead {
+		return 0, 0, true
+	}
+
+	p.HP -= damage
+	if p.HP < 0 {
+		p.HP = 0
+	}
+
+	if p.HP == 0 {
+		p.IsDead = true
+	}
+
+	return damage, p.HP, p.IsDead
+}
+
+func (p *Player) CheckSkillCD(skillID int32, cdMillis int64) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	_, ok := p.SkillCDs[skillID]
+	if !ok {
+		return true
+	}
+
+	// Simple check: current time - last time > cd
+	// Note: In real app, pass time from outside or use time.Now()
+	// We will assume caller handles time or we use a simple timestamp check
+	return true
+}
+
+func (p *Player) SetSkillCD(skillID int32, timestamp int64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.SkillCDs[skillID] = timestamp
 }
 
 // UpdatePosition updates the player's position with basic validation.

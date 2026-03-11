@@ -355,6 +355,84 @@ func (r *Room) onPlayerDisconnect(uid, roomID string) {
 	}
 }
 
+// CastSkill Handler
+func (r *Room) CastSkill(ctx context.Context, req *protocol.CastSkillRequest) (*protocol.CastSkillResponse, error) {
+	s := r.app.GetSessionFromCtx(ctx)
+	uid := s.UID()
+	if uid == "" {
+		return nil, gameerror.New(gameerror.CodeUnauthorized, "not authenticated")
+	}
+
+	val := s.Get("roomID")
+	if val == nil {
+		return nil, gameerror.New(gameerror.CodeNotInRoom, "not in room")
+	}
+	roomID, ok := val.(string)
+	if !ok || roomID == "" {
+		return nil, gameerror.New(gameerror.CodeNotInRoom, "not in room")
+	}
+
+	r.mu.RLock()
+	room, exists := r.rooms[roomID]
+	r.mu.RUnlock()
+
+	if !exists {
+		return nil, gameerror.New(gameerror.CodeRoomNotFound, "room not found")
+	}
+
+	attacker := room.GetPlayer(uid)
+	if attacker == nil {
+		return nil, gameerror.New(gameerror.CodePlayerNotFound, "player not found")
+	}
+
+	// 1. Broadcast Skill Cast to neighbors
+	neighbors, _ := room.AOI.GetNeighbors(uid)
+	if len(neighbors) > 0 {
+		r.app.SendPushToUsers("OnSkillCast", &protocol.SkillCastPush{
+			CasterId:  uid,
+			SkillInfo: req.SkillInfo,
+		}, neighbors, config.Conf.Server.Type)
+	}
+
+	// 2. Damage Logic (Simplified: Check if target exists and apply damage)
+	// In real game, check distance, angle, collision, etc.
+	if req.SkillInfo != nil && req.SkillInfo.TargetId != "" {
+		targetID := req.SkillInfo.TargetId
+		target := room.GetPlayer(targetID)
+		if target != nil {
+			// Mock Damage Calculation
+			damage := attacker.Attack
+			actualDmg, currentHP, isDead := target.ApplyDamage(damage)
+
+			// Notify relevant players (target + neighbors + attacker)
+			// Pitaya SendPushToUsers handles duplicate UIDs efficiently usually, or we can use map to dedup
+			// For simplicity, just append target and attacker to neighbors
+			notifyList := append(neighbors, targetID, uid)
+
+			r.app.SendPushToUsers("OnAttributeUpdate", &protocol.AttributeUpdatePush{
+				TargetId:  targetID,
+				Damage:    actualDmg,
+				CurrentHp: currentHP,
+				MaxHp:     target.MaxHP,
+				IsDead:    isDead,
+			}, notifyList, config.Conf.Server.Type)
+
+			if isDead {
+				// Broadcast Death
+				r.app.SendPushToUsers("OnPlayerDead", &protocol.PlayerDeadPush{
+					Id:       targetID,
+					KillerId: uid,
+				}, notifyList, config.Conf.Server.Type)
+			}
+		}
+	}
+
+	return &protocol.CastSkillResponse{
+		Success: true,
+		Message: "Skill casted",
+	}, nil
+}
+
 // Move Handler (Request)
 func (r *Room) Move(ctx context.Context, req *protocol.MoveRequest) (*protocol.MoveResponse, error) {
 	s := r.app.GetSessionFromCtx(ctx)

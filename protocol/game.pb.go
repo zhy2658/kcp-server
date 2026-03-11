@@ -1077,6 +1077,351 @@ func (x *ForcePositionPush) GetRotation() *Quaternion {
 	return nil
 }
 
+// Combat
+type SkillInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SkillId       int32                  `protobuf:"varint,1,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	TargetId      string                 `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	Direction     *Vector3               `protobuf:"bytes,3,opt,name=direction,proto3" json:"direction,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SkillInfo) Reset() {
+	*x = SkillInfo{}
+	mi := &file_protocol_game_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SkillInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SkillInfo) ProtoMessage() {}
+
+func (x *SkillInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_protocol_game_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SkillInfo.ProtoReflect.Descriptor instead.
+func (*SkillInfo) Descriptor() ([]byte, []int) {
+	return file_protocol_game_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SkillInfo) GetSkillId() int32 {
+	if x != nil {
+		return x.SkillId
+	}
+	return 0
+}
+
+func (x *SkillInfo) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *SkillInfo) GetDirection() *Vector3 {
+	if x != nil {
+		return x.Direction
+	}
+	return nil
+}
+
+func (x *SkillInfo) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+type CastSkillRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SkillInfo     *SkillInfo             `protobuf:"bytes,1,opt,name=skill_info,json=skillInfo,proto3" json:"skill_info,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CastSkillRequest) Reset() {
+	*x = CastSkillRequest{}
+	mi := &file_protocol_game_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CastSkillRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CastSkillRequest) ProtoMessage() {}
+
+func (x *CastSkillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_protocol_game_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CastSkillRequest.ProtoReflect.Descriptor instead.
+func (*CastSkillRequest) Descriptor() ([]byte, []int) {
+	return file_protocol_game_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CastSkillRequest) GetSkillInfo() *SkillInfo {
+	if x != nil {
+		return x.SkillInfo
+	}
+	return nil
+}
+
+type CastSkillResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CastSkillResponse) Reset() {
+	*x = CastSkillResponse{}
+	mi := &file_protocol_game_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CastSkillResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CastSkillResponse) ProtoMessage() {}
+
+func (x *CastSkillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_protocol_game_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CastSkillResponse.ProtoReflect.Descriptor instead.
+func (*CastSkillResponse) Descriptor() ([]byte, []int) {
+	return file_protocol_game_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *CastSkillResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CastSkillResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type SkillCastPush struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CasterId      string                 `protobuf:"bytes,1,opt,name=caster_id,json=casterId,proto3" json:"caster_id,omitempty"`
+	SkillInfo     *SkillInfo             `protobuf:"bytes,2,opt,name=skill_info,json=skillInfo,proto3" json:"skill_info,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SkillCastPush) Reset() {
+	*x = SkillCastPush{}
+	mi := &file_protocol_game_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SkillCastPush) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SkillCastPush) ProtoMessage() {}
+
+func (x *SkillCastPush) ProtoReflect() protoreflect.Message {
+	mi := &file_protocol_game_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SkillCastPush.ProtoReflect.Descriptor instead.
+func (*SkillCastPush) Descriptor() ([]byte, []int) {
+	return file_protocol_game_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *SkillCastPush) GetCasterId() string {
+	if x != nil {
+		return x.CasterId
+	}
+	return ""
+}
+
+func (x *SkillCastPush) GetSkillInfo() *SkillInfo {
+	if x != nil {
+		return x.SkillInfo
+	}
+	return nil
+}
+
+type AttributeUpdatePush struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TargetId      string                 `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	Damage        int32                  `protobuf:"varint,2,opt,name=damage,proto3" json:"damage,omitempty"`
+	CurrentHp     int32                  `protobuf:"varint,3,opt,name=current_hp,json=currentHp,proto3" json:"current_hp,omitempty"`
+	MaxHp         int32                  `protobuf:"varint,4,opt,name=max_hp,json=maxHp,proto3" json:"max_hp,omitempty"`
+	IsDead        bool                   `protobuf:"varint,5,opt,name=is_dead,json=isDead,proto3" json:"is_dead,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AttributeUpdatePush) Reset() {
+	*x = AttributeUpdatePush{}
+	mi := &file_protocol_game_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttributeUpdatePush) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttributeUpdatePush) ProtoMessage() {}
+
+func (x *AttributeUpdatePush) ProtoReflect() protoreflect.Message {
+	mi := &file_protocol_game_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttributeUpdatePush.ProtoReflect.Descriptor instead.
+func (*AttributeUpdatePush) Descriptor() ([]byte, []int) {
+	return file_protocol_game_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *AttributeUpdatePush) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *AttributeUpdatePush) GetDamage() int32 {
+	if x != nil {
+		return x.Damage
+	}
+	return 0
+}
+
+func (x *AttributeUpdatePush) GetCurrentHp() int32 {
+	if x != nil {
+		return x.CurrentHp
+	}
+	return 0
+}
+
+func (x *AttributeUpdatePush) GetMaxHp() int32 {
+	if x != nil {
+		return x.MaxHp
+	}
+	return 0
+}
+
+func (x *AttributeUpdatePush) GetIsDead() bool {
+	if x != nil {
+		return x.IsDead
+	}
+	return false
+}
+
+type PlayerDeadPush struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	KillerId      string                 `protobuf:"bytes,2,opt,name=killer_id,json=killerId,proto3" json:"killer_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayerDeadPush) Reset() {
+	*x = PlayerDeadPush{}
+	mi := &file_protocol_game_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayerDeadPush) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayerDeadPush) ProtoMessage() {}
+
+func (x *PlayerDeadPush) ProtoReflect() protoreflect.Message {
+	mi := &file_protocol_game_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayerDeadPush.ProtoReflect.Descriptor instead.
+func (*PlayerDeadPush) Descriptor() ([]byte, []int) {
+	return file_protocol_game_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *PlayerDeadPush) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PlayerDeadPush) GetKillerId() string {
+	if x != nil {
+		return x.KillerId
+	}
+	return ""
+}
+
 var File_protocol_game_proto protoreflect.FileDescriptor
 
 const file_protocol_game_proto_rawDesc = "" +
@@ -1150,7 +1495,32 @@ const file_protocol_game_proto_rawDesc = "" +
 	"isGrounded\"t\n" +
 	"\x11ForcePositionPush\x12-\n" +
 	"\bposition\x18\x01 \x01(\v2\x11.protocol.Vector3R\bposition\x120\n" +
-	"\brotation\x18\x02 \x01(\v2\x14.protocol.QuaternionR\brotationB\x16Z\x14game-server/protocolb\x06proto3"
+	"\brotation\x18\x02 \x01(\v2\x14.protocol.QuaternionR\brotation\"\x92\x01\n" +
+	"\tSkillInfo\x12\x19\n" +
+	"\bskill_id\x18\x01 \x01(\x05R\askillId\x12\x1b\n" +
+	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12/\n" +
+	"\tdirection\x18\x03 \x01(\v2\x11.protocol.Vector3R\tdirection\x12\x1c\n" +
+	"\ttimestamp\x18\x04 \x01(\x03R\ttimestamp\"F\n" +
+	"\x10CastSkillRequest\x122\n" +
+	"\n" +
+	"skill_info\x18\x01 \x01(\v2\x13.protocol.SkillInfoR\tskillInfo\"G\n" +
+	"\x11CastSkillResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"`\n" +
+	"\rSkillCastPush\x12\x1b\n" +
+	"\tcaster_id\x18\x01 \x01(\tR\bcasterId\x122\n" +
+	"\n" +
+	"skill_info\x18\x02 \x01(\v2\x13.protocol.SkillInfoR\tskillInfo\"\x99\x01\n" +
+	"\x13AttributeUpdatePush\x12\x1b\n" +
+	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12\x16\n" +
+	"\x06damage\x18\x02 \x01(\x05R\x06damage\x12\x1d\n" +
+	"\n" +
+	"current_hp\x18\x03 \x01(\x05R\tcurrentHp\x12\x15\n" +
+	"\x06max_hp\x18\x04 \x01(\x05R\x05maxHp\x12\x17\n" +
+	"\ais_dead\x18\x05 \x01(\bR\x06isDead\"=\n" +
+	"\x0ePlayerDeadPush\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\tkiller_id\x18\x02 \x01(\tR\bkillerIdB\x16Z\x14game-server/protocolb\x06proto3"
 
 var (
 	file_protocol_game_proto_rawDescOnce sync.Once
@@ -1164,27 +1534,33 @@ func file_protocol_game_proto_rawDescGZIP() []byte {
 	return file_protocol_game_proto_rawDescData
 }
 
-var file_protocol_game_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_protocol_game_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_protocol_game_proto_goTypes = []any{
-	(*CreateRoomRequest)(nil),  // 0: protocol.CreateRoomRequest
-	(*CreateRoomResponse)(nil), // 1: protocol.CreateRoomResponse
-	(*ListRoomsRequest)(nil),   // 2: protocol.ListRoomsRequest
-	(*RoomInfo)(nil),           // 3: protocol.RoomInfo
-	(*ListRoomsResponse)(nil),  // 4: protocol.ListRoomsResponse
-	(*JoinRequest)(nil),        // 5: protocol.JoinRequest
-	(*JoinResponse)(nil),       // 6: protocol.JoinResponse
-	(*LeaveRequest)(nil),       // 7: protocol.LeaveRequest
-	(*LeaveResponse)(nil),      // 8: protocol.LeaveResponse
-	(*Vector3)(nil),            // 9: protocol.Vector3
-	(*Quaternion)(nil),         // 10: protocol.Quaternion
-	(*PlayerState)(nil),        // 11: protocol.PlayerState
-	(*MoveRequest)(nil),        // 12: protocol.MoveRequest
-	(*MoveResponse)(nil),       // 13: protocol.MoveResponse
-	(*ChatMessage)(nil),        // 14: protocol.ChatMessage
-	(*PlayerJoinPush)(nil),     // 15: protocol.PlayerJoinPush
-	(*PlayerLeavePush)(nil),    // 16: protocol.PlayerLeavePush
-	(*PlayerMovePush)(nil),     // 17: protocol.PlayerMovePush
-	(*ForcePositionPush)(nil),  // 18: protocol.ForcePositionPush
+	(*CreateRoomRequest)(nil),   // 0: protocol.CreateRoomRequest
+	(*CreateRoomResponse)(nil),  // 1: protocol.CreateRoomResponse
+	(*ListRoomsRequest)(nil),    // 2: protocol.ListRoomsRequest
+	(*RoomInfo)(nil),            // 3: protocol.RoomInfo
+	(*ListRoomsResponse)(nil),   // 4: protocol.ListRoomsResponse
+	(*JoinRequest)(nil),         // 5: protocol.JoinRequest
+	(*JoinResponse)(nil),        // 6: protocol.JoinResponse
+	(*LeaveRequest)(nil),        // 7: protocol.LeaveRequest
+	(*LeaveResponse)(nil),       // 8: protocol.LeaveResponse
+	(*Vector3)(nil),             // 9: protocol.Vector3
+	(*Quaternion)(nil),          // 10: protocol.Quaternion
+	(*PlayerState)(nil),         // 11: protocol.PlayerState
+	(*MoveRequest)(nil),         // 12: protocol.MoveRequest
+	(*MoveResponse)(nil),        // 13: protocol.MoveResponse
+	(*ChatMessage)(nil),         // 14: protocol.ChatMessage
+	(*PlayerJoinPush)(nil),      // 15: protocol.PlayerJoinPush
+	(*PlayerLeavePush)(nil),     // 16: protocol.PlayerLeavePush
+	(*PlayerMovePush)(nil),      // 17: protocol.PlayerMovePush
+	(*ForcePositionPush)(nil),   // 18: protocol.ForcePositionPush
+	(*SkillInfo)(nil),           // 19: protocol.SkillInfo
+	(*CastSkillRequest)(nil),    // 20: protocol.CastSkillRequest
+	(*CastSkillResponse)(nil),   // 21: protocol.CastSkillResponse
+	(*SkillCastPush)(nil),       // 22: protocol.SkillCastPush
+	(*AttributeUpdatePush)(nil), // 23: protocol.AttributeUpdatePush
+	(*PlayerDeadPush)(nil),      // 24: protocol.PlayerDeadPush
 }
 var file_protocol_game_proto_depIdxs = []int32{
 	3,  // 0: protocol.ListRoomsResponse.rooms:type_name -> protocol.RoomInfo
@@ -1197,11 +1573,14 @@ var file_protocol_game_proto_depIdxs = []int32{
 	10, // 7: protocol.PlayerMovePush.rotation:type_name -> protocol.Quaternion
 	9,  // 8: protocol.ForcePositionPush.position:type_name -> protocol.Vector3
 	10, // 9: protocol.ForcePositionPush.rotation:type_name -> protocol.Quaternion
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	9,  // 10: protocol.SkillInfo.direction:type_name -> protocol.Vector3
+	19, // 11: protocol.CastSkillRequest.skill_info:type_name -> protocol.SkillInfo
+	19, // 12: protocol.SkillCastPush.skill_info:type_name -> protocol.SkillInfo
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_protocol_game_proto_init() }
@@ -1215,7 +1594,7 @@ func file_protocol_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_protocol_game_proto_rawDesc), len(file_protocol_game_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
